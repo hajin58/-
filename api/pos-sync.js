@@ -1,7 +1,30 @@
-// 매장별 실시간 데이터를 메모리에 보관
+// 매장별 실시간 데이터 및 CCTV 정보 관리
 let storeDataCache = {
-  solsot_gfc: { name: "솔솥 GFC점", todaySales: 0, totalCount: 0, avgPrice: 0, lastUpdated: null, statusMsg: "대기 중" },
-  solsot_yeoksam: { name: "솔솥 역삼점", todaySales: 0, totalCount: 0, avgPrice: 0, lastUpdated: null, statusMsg: "대기 중" }
+  solsot_gfc: { 
+    name: "솔솥 GFC점", 
+    todaySales: 0, 
+    totalCount: 0, 
+    avgPrice: 0, 
+    lastUpdated: null, 
+    statusMsg: "대기 중",
+    cctv: { connected: false, url: null }
+  },
+  solsot_yeoksam: { 
+    name: "솔솥 역삼점", 
+    todaySales: 0, 
+    totalCount: 0, 
+    avgPrice: 0, 
+    lastUpdated: null, 
+    statusMsg: "대기 중",
+    cctv: { 
+      connected: true, 
+      host: "34ea7f.dvrinside.com", 
+      port: 8000, 
+      channel: 1,
+      rtspUrl: "rtsp://admin@34ea7f.dvrinside.com:8000/ch1/main",
+      streamUrl: "https://34ea7f.dvrinside.com:8000" 
+    }
+  }
 };
 
 export default async function handler(req, res) {
@@ -13,7 +36,7 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 1. POS 단말기에서 데이터를 보내올 때 (POST)
+  // 1. 매장 POS 단말기에서 매출 데이터 전송 시 (POST)
   if (req.method === 'POST') {
     const { storeKey, todaySales, totalCount, avgPrice, timestamp } = req.body;
 
@@ -31,7 +54,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Invalid storeKey" });
   }
 
-  // 2. 대시보드 화면에서 조회를 요청할 때 (GET)
+  // 2. 대시보드 화면에서 데이터 요청 시 (GET)
   if (req.method === 'GET') {
     return res.status(200).json({
       timestamp: new Date().toISOString(),
