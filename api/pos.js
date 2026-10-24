@@ -21,7 +21,7 @@ export default async function handler(req, res) {
     }
 
     try {
-      // 1. 유니온소프트 로그인 처리 (세션 쿠키 발급)
+      // 1. 유니온소프트 로그인 및 JSESSIONID 발급
       const loginRes = await fetch(`${PROXY_URL}/login_check.asp`, {
         method: "POST",
         headers: {
@@ -35,22 +35,26 @@ export default async function handler(req, res) {
       const jsessionidMatch = rawCookie.match(/JSESSIONID=([^;]+)/);
       const cookieHeader = jsessionidMatch ? `JSESSIONID=${jsessionidMatch[1]}` : rawCookie;
 
-      // 2. v2/onday API 호출 (JSON 응답 수신)
+      // 2. v2/onday POST 요청 (cURL 규격과 동일하게 빈 바디 송신)
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           "Cookie": cookieHeader,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        },
-        body: JSON.stringify({ timing: "now" })
+        }
       });
 
-      const data = await salesRes.json();
+      const textData = await salesRes.text();
+      let data = {};
+      try {
+        data = JSON.parse(textData);
+      } catch (e) {
+        console.error(`${storeName} 응답 파싱 실패:`, textData);
+      }
 
-      // v2 API JSON 응답 데이터 매핑
-      const todaySales = parseInt(data.tot_amt || data.today_sales || data.tot_sale_amt || 0, 10);
-      const totalCount = parseInt(data.tot_cnt || data.today_cnt || data.sale_cnt || 0, 10);
+      // JSON 필드 파싱 (여러 규격 자동 대응)
+      const todaySales = parseInt(data.tot_amt || data.today_sales || data.tot_sale_amt || data.sale_amt || 0, 10);
+      const totalCount = parseInt(data.tot_cnt || data.today_cnt || data.sale_cnt || data.cnt || 0, 10);
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
       return {
