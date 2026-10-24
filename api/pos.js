@@ -13,62 +13,73 @@ export default async function handler(req, res) {
   const yeoksamId = process.env.YEOKSAM_POS_ID;
   const yeoksamPw = process.env.YEOKSAM_POS_PW;
 
-  async function fetchUnionAppSales(userId, userPw, storeName) {
+  // Cloudflare 한국 우회 프록시 서버 주소
+  const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
+
+  async function fetchUnionStoreData(userId, userPw, storeName) {
     if (!userId || !userPw) {
       return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, statusMsg: "계정미설정" };
     }
 
     try {
-      // 모바일 APP 인증 패킷 세팅
-      const authPayload = {
-        userId: userId,
-        userPw: userPw,
-        appVersion: "2.1.0",
-        deviceType: "ANDROID"
-      };
-
-      // 유니온소프트 모바일 전용 API 호출
-      const loginRes = await fetch("http://asp.unionpos.co.kr/app/api/login.aspx", {
+      // 1. Cloudflare 중계 서버를 통해 유니온소프트 로그인 진행
+      const loginRes = await fetch(`${PROXY_URL}/login_check.asp`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "User-Agent": "UnionSoftMobileApp/2.1.0",
-          "X-Forwarded-For": "211.234.240.1" // 한국 IP 우회 헤더
+          "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"
         },
-        body: JSON.stringify(authPayload)
+        body: new URLSearchParams({
+          user_id: userId,
+          user_pw: userPw
+        })
       });
 
-      if (!loginRes.ok) {
-        // 백엔드 파이프라인 수집 중 예외시 임시 가동
-        return { connected: true, todaySales: storeName.includes('GFC') ? 4250000 : 3420000, totalCount: storeName.includes('GFC') ? 114 : 92, avgPrice: 37200, statusMsg: "정상연동" };
-      }
+      const cookie = loginRes.headers.get("set-cookie");
 
-      const data = await loginRes.json();
+      // 2. 당일 매출 데이터 요청
+      const today = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const salesRes = await fetch(`${PROXY_URL}/sales/today_sales.asp?sale_date=${today}`, {
+        headers: {
+          "Cookie": cookie || "",
+          "User-Agent": "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36"
+        }
+      });
+
+      const htmlText = await salesRes.text();
+
+      // HTML 내 매출 정규식 파싱
+      const salesMatch = htmlText.match(/총매출액?\s*:\s*([\d,]+)/) || htmlText.match(/([\d,]+)원/);
+      const countMatch = htmlText.match(/건수?\s*:\s*([\d,]+)/) || htmlText.match(/([\d,]+)건/);
+
+      const todaySales = salesMatch ? parseInt(salesMatch[1].replace(/,/g, ''), 10) : 0;
+      const totalCount = countMatch ? parseInt(countMatch[1].replace(/,/g, ''), 10) : 0;
+      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
       return {
         connected: true,
-        todaySales: data.todaySales || 0,
-        totalCount: data.totalCount || 0,
-        avgPrice: data.avgPrice || 0,
-        statusMsg: "정상연동"
+        todaySales: todaySales,
+        totalCount: totalCount,
+        avgPrice: avgPrice,
+        statusMsg: "실시간 동기화됨"
       };
 
     } catch (err) {
-      // 통신 세션 에러시 대시보드 중단 방지
+      console.error(`${storeName} 우회 연동 오류:`, err);
       return { 
         connected: true, 
-        todaySales: storeName.includes('GFC') ? 4250000 : 3420000, 
-        totalCount: storeName.includes('GFC') ? 114 : 92, 
-        avgPrice: 37200, 
-        statusMsg: "연동동기화중" 
+        todaySales: 0, 
+        totalCount: 0, 
+        avgPrice: 0, 
+        statusMsg: "통신 오류" 
       };
     }
   }
 
   try {
     const [gfcData, yeoksamData] = await Promise.all([
-      fetchUnionAppSales(gfcId, gfcPw, "솔솥 GFC점"),
-      fetchUnionAppSales(yeoksamId, yeoksamPw, "솔솥 역삼점")
+      fetchUnionStoreData(gfcId, gfcPw, "솔솥 GFC점"),
+      fetchUnionStoreData(yeoksamId, yeoksamPw, "솔솥 역삼점")
     ]);
 
     return res.status(200).json({
