@@ -1,4 +1,3 @@
-// 매장별 실시간 데이터 및 CCTV 정보 관리
 let storeDataCache = {
   solsot_gfc: { 
     name: "솔솥 GFC점", 
@@ -22,7 +21,8 @@ let storeDataCache = {
       port: 8000, 
       channel: 1,
       rtspUrl: "rtsp://admin@34ea7f.dvrinside.com:8000/ch1/main",
-      streamUrl: "https://34ea7f.dvrinside.com:8000" 
+      // 웹에서 직접 외부 뷰어로 보거나 HLS 연동용 URL
+      streamUrl: "http://34ea7f.dvrinside.com:8000" 
     }
   }
 };
@@ -36,7 +36,6 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 1. 매장 POS 단말기에서 매출 데이터 전송 시 (POST)
   if (req.method === 'POST') {
     const { storeKey, todaySales, totalCount, avgPrice, timestamp } = req.body;
 
@@ -54,7 +53,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Invalid storeKey" });
   }
 
-  // 2. 대시보드 화면에서 데이터 요청 시 (GET)
   if (req.method === 'GET') {
     return res.status(200).json({
       timestamp: new Date().toISOString(),
