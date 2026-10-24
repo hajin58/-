@@ -350,14 +350,14 @@ function MainDashboardContent({ onLogout }) {
               </div>
             </div>
 
-            {/* 솔솥 역삼점 (연동 완료) */}
+            {/* 솔솥 역삼점 (8000번 모바일 전용 포트 제거, 웹 기본 포트로 수정) */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg border-emerald-500/30">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   솔솥 역삼점 - 실시간 CCTV
                 </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono">PORT 8000</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono">WEB PORT</span>
               </div>
               
               <div className="h-56 bg-slate-950 p-4 flex flex-col items-center justify-center relative">
@@ -370,7 +370,7 @@ function MainDashboardContent({ onLogout }) {
                     <p className="text-[11px] text-slate-400 mt-0.5">계정: admin (비밀번호 없음)</p>
                   </div>
                   <a
-                    href="http://34ea7f.dvrinside.com:8000"
+                    href="http://34ea7f.dvrinside.com"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-lg transition-all shadow-md active:scale-95"
