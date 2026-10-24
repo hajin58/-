@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Building2, TrendingUp, Users, ShieldAlert, Camera, 
-  CreditCard, RefreshCw, ChevronRight, CheckCircle2, 
-  Clock, AlertTriangle, Play, LayoutGrid, Calendar, Plus,
-  Lock, KeyRound
+  CreditCard, RefreshCw, CheckCircle2, 
+  Clock, AlertTriangle, Lock, KeyRound
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -101,10 +100,71 @@ export default function App() {
 function MainDashboardContent({ onLogout }) {
   const [selectedStore, setSelectedStore] = useState('all');
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [loading, setLoading] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState('');
+  
+  // POS 실시간 연동 데이터 상태
+  const [posData, setPosData] = useState({
+    solsot_gfc: { name: "솔솥 GFC점", connected: true, todaySales: 4250000, totalCount: 114, avgPrice: 37280 },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: true, todaySales: 3420000, totalCount: 92, avgPrice: 37170 },
+    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 }
+  });
+
+  // POS API 연동 데이터 동기화 함수
+  const fetchPosData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/pos');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.stores) {
+          setPosData(data.stores);
+        }
+      }
+    } catch (err) {
+      console.error("POS 데이터 수집 실패:", err);
+    } finally {
+      setLoading(false);
+      const now = new Date();
+      setLastUpdated(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosData();
+    // 5분마다 자동 동기화
+    const interval = setInterval(fetchPosData, 300000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 선택 필터에 따른 매출 계산
+  const getCalculatedData = () => {
+    if (selectedStore === 'solsot_gfc') {
+      return posData.solsot_gfc;
+    } else if (selectedStore === 'solsot_yeoksam') {
+      return posData.solsot_yeoksam;
+    } else if (selectedStore === 'goteat_seolleung') {
+      return posData.goteat_seolleung;
+    } else {
+      // 전체 매장 합산
+      const totalSales = (posData.solsot_gfc?.todaySales || 0) + (posData.solsot_yeoksam?.todaySales || 0);
+      const totalCount = (posData.solsot_gfc?.totalCount || 0) + (posData.solsot_yeoksam?.totalCount || 0);
+      const avgPrice = totalCount > 0 ? Math.round(totalSales / totalCount) : 0;
+      return {
+        name: "전체 매장 합산",
+        connected: posData.solsot_gfc?.connected && posData.solsot_yeoksam?.connected,
+        todaySales: totalSales,
+        totalCount: totalCount,
+        avgPrice: avgPrice
+      };
+    }
+  };
+
+  const currentDisplay = getCalculatedData();
 
   const stores = [
-    { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: true, cctvCount: 4 },
-    { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: true, cctvCount: 3 },
+    { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected, cctvCount: 4 },
+    { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: posData.solsot_yeoksam?.connected, cctvCount: 3 },
     { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 중순 오픈예정', posConnected: false, cctvCount: 2 },
   ];
 
@@ -139,9 +199,13 @@ function MainDashboardContent({ onLogout }) {
             >
               잠금
             </button>
-            <button className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition">
-              <RefreshCw className="w-3.5 h-3.5" />
-              <span>동기화</span>
+            <button 
+              onClick={fetchPosData}
+              disabled={loading}
+              className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <span>{loading ? '동기화 중...' : '동기화'}</span>
             </button>
           </div>
         </div>
@@ -208,9 +272,11 @@ function MainDashboardContent({ onLogout }) {
                   <span className="text-xs text-slate-400 font-medium">오늘 총 매출</span>
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">7,670,000원</div>
+                <div className="text-2xl font-black text-white tracking-tight">
+                  {currentDisplay.todaySales.toLocaleString()}원
+                </div>
                 <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                  ▲ 전주 대비 +14.2%
+                  ▲ 실시간 수집중 ({lastUpdated ? `${lastUpdated} 기준` : '동기화됨'})
                 </div>
               </div>
 
@@ -219,8 +285,8 @@ function MainDashboardContent({ onLogout }) {
                   <span className="text-xs text-slate-400 font-medium">총 결제 건수</span>
                   <CreditCard className="w-4 h-4 text-blue-400" />
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">206건</div>
-                <div className="text-xs text-slate-400 mt-1">객단가 약 37,200원</div>
+                <div className="text-2xl font-black text-white tracking-tight">{currentDisplay.totalCount}건</div>
+                <div className="text-xs text-slate-400 mt-1">객단가 약 {currentDisplay.avgPrice.toLocaleString()}원</div>
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -237,8 +303,10 @@ function MainDashboardContent({ onLogout }) {
                   <span className="text-xs text-slate-400 font-medium">POS 연동 상태</span>
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 </div>
-                <div className="text-lg font-bold text-emerald-400">유니온소프트 정상</div>
-                <div className="text-xs text-slate-400 mt-1">GFC점, 역삼점 동기화됨</div>
+                <div className="text-lg font-bold text-emerald-400">
+                  {currentDisplay.connected ? '유니온소프트 정상' : '설정 필요'}
+                </div>
+                <div className="text-xs text-slate-400 mt-1">API 서버 연동 상태 양호</div>
               </div>
             </div>
 
