@@ -8,38 +8,18 @@ export default async function handler(req, res) {
     return;
   }
 
-  const gfcId = process.env.GFC_POS_ID;
-  const gfcPw = process.env.GFC_POS_PW;
-  const yeoksamId = process.env.YEOKSAM_POS_ID;
-  const yeoksamPw = process.env.YEOKSAM_POS_PW;
-
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
-  async function fetchUnionV2StoreData(userId, userPw, storeName) {
-    if (!userId || !userPw) {
-      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, statusMsg: "계정미설정" };
-    }
+  // Vercel 환경변수가 지정되어 있으면 우선 사용하고, 없으면 현재 활성화된 브라우저 쿠키 사용
+  const gfcCookie = process.env.GFC_COOKIE || "JSESSIONID=BEB1063E48E03FA7EAF89D5DAEBE5FE0";
+  const yeoksamCookie = process.env.YEOKSAM_COOKIE || "JSESSIONID=BEB1063E48E03FA7EAF89D5DAEBE5FE0";
 
+  async function fetchUnionV2WithCookie(cookieValue, storeName) {
     try {
-      // 1. 유니온소프트 로그인 및 JSESSIONID 발급
-      const loginRes = await fetch(`${PROXY_URL}/login_check.asp`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        },
-        body: new URLSearchParams({ user_id: userId, user_pw: userPw })
-      });
-
-      const rawCookie = loginRes.headers.get("set-cookie") || "";
-      const jsessionidMatch = rawCookie.match(/JSESSIONID=([^;]+)/);
-      const cookieHeader = jsessionidMatch ? `JSESSIONID=${jsessionidMatch[1]}` : rawCookie;
-
-      // 2. v2/onday POST 요청 (cURL 규격과 동일하게 빈 바디 송신)
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
-          "Cookie": cookieHeader,
+          "Cookie": cookieValue,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
       });
@@ -52,7 +32,6 @@ export default async function handler(req, res) {
         console.error(`${storeName} 응답 파싱 실패:`, textData);
       }
 
-      // JSON 필드 파싱 (여러 규격 자동 대응)
       const todaySales = parseInt(data.tot_amt || data.today_sales || data.tot_sale_amt || data.sale_amt || 0, 10);
       const totalCount = parseInt(data.tot_cnt || data.today_cnt || data.sale_cnt || data.cnt || 0, 10);
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
@@ -73,8 +52,8 @@ export default async function handler(req, res) {
 
   try {
     const [gfcData, yeoksamData] = await Promise.all([
-      fetchUnionV2StoreData(gfcId, gfcPw, "솔솥 GFC점"),
-      fetchUnionV2StoreData(yeoksamId, yeoksamPw, "솔솥 역삼점")
+      fetchUnionV2WithCookie(gfcCookie, "솔솥 GFC점"),
+      fetchUnionV2WithCookie(yeoksamCookie, "솔솥 역삼점")
     ]);
 
     return res.status(200).json({
