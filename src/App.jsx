@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   Building2, TrendingUp, Users, ShieldAlert, Camera, 
   CreditCard, RefreshCw, CheckCircle2, 
-  Clock, AlertTriangle, Lock, KeyRound
+  Clock, AlertTriangle, Lock, KeyRound, ExternalLink, Video
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -114,7 +114,7 @@ function MainDashboardContent({ onLogout }) {
   const fetchPosData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/pos');
+      const res = await fetch('/api/pos-sync');
       if (res.ok) {
         const data = await res.json();
         if (data.stores) {
@@ -132,12 +132,10 @@ function MainDashboardContent({ onLogout }) {
 
   useEffect(() => {
     fetchPosData();
-    // 5분마다 자동 동기화
     const interval = setInterval(fetchPosData, 300000);
     return () => clearInterval(interval);
   }, []);
 
-  // 선택 필터에 따른 매출 계산
   const getCalculatedData = () => {
     if (selectedStore === 'solsot_gfc') {
       return posData.solsot_gfc;
@@ -146,7 +144,6 @@ function MainDashboardContent({ onLogout }) {
     } else if (selectedStore === 'goteat_seolleung') {
       return posData.goteat_seolleung;
     } else {
-      // 전체 매장 합산
       const totalSales = (posData.solsot_gfc?.todaySales || 0) + (posData.solsot_yeoksam?.todaySales || 0);
       const totalCount = (posData.solsot_gfc?.totalCount || 0) + (posData.solsot_yeoksam?.totalCount || 0);
       const avgPrice = totalCount > 0 ? Math.round(totalSales / totalCount) : 0;
@@ -338,6 +335,7 @@ function MainDashboardContent({ onLogout }) {
         {/* 탭 2: CCTV 관제 */}
         {activeTab === 'cctv' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* 솔솥 GFC점 */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
@@ -346,26 +344,45 @@ function MainDashboardContent({ onLogout }) {
                 </span>
                 <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded">RTSP 01</span>
               </div>
-              <div className="h-48 bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative">
+              <div className="h-56 bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative">
                 <Camera className="w-10 h-10 mb-2 opacity-40" />
-                <span className="text-xs font-medium">실시간 스트림 연결 중...</span>
+                <span className="text-xs font-medium">GFC점 IP/포트 연동 대기 중</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
+            {/* 솔솥 역삼점 (연동 완료) */}
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg border-emerald-500/30">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-                  솔솥 역삼점 - 홀 메인
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  솔솥 역삼점 - 실시간 CCTV
                 </span>
-                <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded">RTSP 02</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded font-mono">PORT 8000</span>
               </div>
-              <div className="h-48 bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative">
-                <Camera className="w-10 h-10 mb-2 opacity-40" />
-                <span className="text-xs font-medium">실시간 스트림 연결 중...</span>
+              
+              <div className="h-56 bg-slate-950 p-4 flex flex-col items-center justify-center relative">
+                <div className="text-center space-y-3">
+                  <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto border border-emerald-500/20">
+                    <Video className="w-6 h-6 text-emerald-400" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-200">34ea7f.dvrinside.com</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">계정: admin (비밀번호 없음)</p>
+                  </div>
+                  <a
+                    href="http://34ea7f.dvrinside.com:8000"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-lg transition-all shadow-md active:scale-95"
+                  >
+                    <span>실시간 CCTV 뷰어 열기</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
               </div>
             </div>
 
+            {/* 갓잇 선릉점 */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
@@ -374,7 +391,7 @@ function MainDashboardContent({ onLogout }) {
                 </span>
                 <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded">준비중</span>
               </div>
-              <div className="h-48 bg-slate-950/50 flex flex-col items-center justify-center text-slate-500 relative">
+              <div className="h-56 bg-slate-950/50 flex flex-col items-center justify-center text-slate-500 relative">
                 <AlertTriangle className="w-8 h-8 mb-2 text-amber-500/60" />
                 <span className="text-xs text-slate-400 font-medium">12월 중순 장비 설치 예정</span>
               </div>
