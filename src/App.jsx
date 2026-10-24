@@ -12,8 +12,8 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // 🔒 Master Password
-  const MASTER_PASSWORD = "dearspoon1234!";
+  // 🔒 Master Password 설정 (821125)
+  const MASTER_PASSWORD = "821125";
 
   useEffect(() => {
     const authStatus = sessionStorage.getItem('dearspoon_auth');
@@ -53,15 +53,18 @@ export default function App() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs text-slate-400 mb-1 font-medium">관리자 비밀번호</label>
+              <label className="block text-xs text-slate-400 mb-1 font-medium">관리자 비밀번호 (숫자 6자리)</label>
               <div className="relative">
                 <input
                   type="password"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="비밀번호를 입력하세요"
-                  className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-3 pl-11 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all"
+                  placeholder="비밀번호 6자리 입력"
+                  className="w-full bg-slate-900/80 border border-slate-700 rounded-lg px-4 py-3 pl-11 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all tracking-widest text-lg font-mono"
                   autoFocus
+                  maxLength={6}
                 />
                 <KeyRound className="w-5 h-5 text-slate-500 absolute left-3.5 top-3.5" />
               </div>
