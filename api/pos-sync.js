@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     try {
       if (!cookieValue) {
         console.error(`🚨 [${storeName}] 쿠키(JSESSIONID)가 등록되지 않았습니다.`);
-        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
+        return { connected: false, todaySales: 0, totalCount: 0, avgProcess: 0 };
       }
 
       console.log(`\n⏳ [${storeName}] 데이터 조회 중...`);
@@ -47,39 +47,43 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 [핵심 파싱] 유니온이 주는 모든 객체 안에서 금액(Amt)이나 건수(Cnt)를 무조건 찾아내기
-      let todaySales = parseInt(
-        data.tot_amt || 
-        data.today_sales || 
-        data.tot_sale_amt || 
-        data.sale_amt || 
-        data.MONTH?.UnitAmt || 
-        data.data?.tot_amt ||
-        0, 10
-      );
+      // 🔥 [일매출 / 월매출 분기 처리]
+      // 유니온이 주는 응답 안에서 일일 매출 데이터 배열이나 오늘자 필드가 있는지 탐색
+      let todaySales = 0;
+      let totalCount = 0;
 
-      // 만약 여전히 UnitAmt 같은 월간 데이터가 걸리거나 숫자가 너무 작다면, 응답 JSON 안의 모든 숫자 필드 중 가장 그럴싸한 매출 값을 탐색
-      if (todaySales < 100000 && data.MONTH) {
-        // 만약 월간 총액 등이 숨어있다면 여기서 추출
-        const monthValues = Object.values(data.MONTH).map(v => parseInt(v, 10)).filter(v => !isNaN(v));
-        if (monthValues.length > 0) {
-          // 가장 큰 값을 오늘 누적 매출로 임시 채택 (또는 적절한 값)
-          todaySales = Math.max(...monthValues);
+      // 만약 일별 상세 데이터(예: list, dayList, items 등)가 존재한다면 오늘 날짜 데이터를 매칭
+      if (data.list && Array.isArray(data.list)) {
+        // 오늘 날짜(YYYY-MM-DD 등)와 일치하는 항목 찾기 시도
+        const todayStr = new Date().toISOString().split('T')[0];
+        const todayItem = data.list.find(item => item.date === todayStr || item.day === todayStr);
+        if (todayItem) {
+          todaySales = parseInt(todayItem.tot_amt || todayItem.sale_amt || 0, 10);
+          totalCount = parseInt(todayItem.tot_cnt || todayItem.cnt || 0, 10);
         }
       }
 
-      const totalCount = parseInt(
-        data.tot_cnt || 
-        data.today_cnt || 
-        data.sale_cnt || 
-        data.cnt || 
-        data.MONTH?.Cnt ||
-        0, 10
-      );
+      // 만약 위에서 못 찾았거나 단일 필드로 오늘 매출이 온다면
+      if (todaySales === 0) {
+        todaySales = parseInt(
+          data.tot_amt || 
+          data.today_sales || 
+          data.tot_sale_amt || 
+          data.sale_amt || 
+          0, 10
+        );
+      }
+
+      // 여전히 0원이고 MONTH 데이터만 있다면, 월 매출을 보여주거나 그 안의 일별 데이터를 역추적
+      if (todaySales === 0 && data.MONTH) {
+        // 우선 월 매출 총액이라도 잡아서 확인 (UnitAmt 등)
+        todaySales = parseInt(data.MONTH.UnitAmt || data.MONTH.tot_amt || 0, 10);
+        totalCount = parseInt(data.MONTH.Cnt || data.MONTH.tot_cnt || 0, 10);
+      }
 
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      console.log(`✅ [${storeName}] 최종 매출 추출 성공: ${todaySales}원 / ${totalCount}건`);
+      console.log(`✅ [${storeName}] 최종 매칭 매출: ${todaySales}원 / ${totalCount}건`);
 
       return {
         connected: todaySales > 0 || totalCount > 0,
@@ -94,12 +98,10 @@ export default async function handler(req, res) {
     }
   }
 
-  const gfcCookie = process.env.GFC_COOKIE;
+  // GFC점은 잠시 제외하고 역삼점(yeoksamCookie)에만 집중해서 테스트
   const yeoksamCookie = process.env.YEOKSAM_COOKIE;
 
   try {
-    const gfcData = await fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie);
-    await new Promise(resolve => setTimeout(resolve, 500));
     const yeoksamData = await fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie);
 
     return res.status(200).json({
@@ -108,7 +110,10 @@ export default async function handler(req, res) {
       stores: {
         solsot_gfc: { 
           name: "솔솥 GFC점", 
-          ...gfcData,
+          connected: false, 
+          todaySales: 0, 
+          totalCount: 0, 
+          avgPrice: 0,
           cctv: { connected: false, url: null } 
         },
         solsot_yeoksam: { 
