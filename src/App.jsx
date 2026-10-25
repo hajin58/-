@@ -244,7 +244,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-16 selection:bg-amber-500 selection:text-slate-950">
-      {/* 상단 네비게이션 헤더 */}
       <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40 px-4 sm:px-6 py-3.5 shadow-lg shadow-black/20">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -278,10 +277,8 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         </div>
       </header>
 
-      {/* 메인 컨텐츠 영역 */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 relative space-y-6">
         
-        {/* 환영 알림 배너 */}
         {welcomeMessage && (
           <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 p-4 sm:p-5 rounded-2xl flex items-center justify-between shadow-lg shadow-amber-500/5 backdrop-blur-sm">
             <div className="flex items-center gap-3.5">
@@ -296,7 +293,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
           </div>
         )}
 
-        {/* 매장 선택 탭 */}
         <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
             onClick={() => setSelectedStore('all')}
@@ -324,7 +320,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
           ))}
         </div>
 
-        {/* 대시보드 / CCTV 메인 서브 탭 */}
         <div className="flex gap-6 border-b border-slate-800/80">
           <button
             onClick={() => setActiveTab('dashboard')}
@@ -352,7 +347,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               
-              {/* 1. 오늘 총 매출 카드 */}
               <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 relative group flex flex-col justify-between shadow-xl hover:border-slate-700/80 transition-all">
                 <div>
                   <div className="flex justify-between items-start mb-3">
@@ -393,7 +387,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                 </div>
               </div>
 
-              {/* 2. 오늘 결제 건수 카드 */}
               <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 flex flex-col justify-between shadow-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
@@ -413,7 +406,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                 </div>
               </div>
 
-              {/* 3. 테이블 점유율 카드 */}
               <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 flex flex-col justify-between shadow-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
@@ -432,7 +424,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                 </div>
               </div>
 
-              {/* 4. POS 연동 상태 카드 */}
               <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 flex flex-col justify-between shadow-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
@@ -455,6 +446,55 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               </div>
 
             </div>
+
+            {selectedStore === 'all' && (currentDisplay?.todaySales > 0) && (
+              <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full blur-2xl"></div>
+                
+                <h3 className="text-sm font-bold text-slate-300 mb-5 flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-amber-400" />
+                  실시간 지점별 매출 기여도
+                </h3>
+
+                <div className="space-y-5 relative z-10">
+                  {(() => {
+                    const yeoksamSales = posData.solsot_yeoksam?.todaySales || 0;
+                    const gfcSales = posData.solsot_gfc?.todaySales || 0;
+                    const totalSales = yeoksamSales + gfcSales;
+                    
+                    const yeoksamPercent = totalSales > 0 ? ((yeoksamSales / totalSales) * 100).toFixed(1) : 0;
+                    const gfcPercent = totalSales > 0 ? ((gfcSales / totalSales) * 100).toFixed(1) : 0;
+                    
+                    const isYeoksamFirst = yeoksamSales >= gfcSales;
+
+                    const firstPlace = isYeoksamFirst ? { name: '역삼점', sales: yeoksamSales, percent: yeoksamPercent, color: 'bg-amber-500' } : { name: 'GFC점', sales: gfcSales, percent: gfcPercent, color: 'bg-amber-500' };
+                    const secondPlace = isYeoksamFirst ? { name: 'GFC점', sales: gfcSales, percent: gfcPercent, color: 'bg-slate-600' } : { name: '역삼점', sales: yeoksamSales, percent: yeoksamPercent, color: 'bg-slate-600' };
+
+                    return (
+                      <>
+                        <div className="flex justify-between items-end mb-2">
+                          <div className="flex flex-col">
+                            <span className="text-xs text-amber-400 font-bold mb-1">🥇 1위 {firstPlace.name}</span>
+                            <span className="text-xl font-black text-white">{firstPlace.sales.toLocaleString()}원 <span className="text-sm text-slate-400 font-medium">({firstPlace.percent}%)</span></span>
+                          </div>
+                          <div className="flex flex-col text-right">
+                            <span className="text-xs text-slate-400 font-bold mb-1">🥈 2위 {secondPlace.name}</span>
+                            <span className="text-lg font-bold text-slate-300">{secondPlace.sales.toLocaleString()}원 <span className="text-xs text-slate-500">({secondPlace.percent}%)</span></span>
+                          </div>
+                        </div>
+                        
+                        <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
+                          <div style={{ width: `${firstPlace.percent}%` }} className="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-1000 relative">
+                             <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                          </div>
+                          <div style={{ width: `${secondPlace.percent}%` }} className="h-full bg-slate-600 transition-all duration-1000"></div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -522,7 +562,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         )}
       </main>
 
-      {/* 상세 현황 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-opacity">
           <div className="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -557,7 +596,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                 </div>
               </div>
 
-              {/* 결제 수단 상세 내역 */}
               <div className="pt-2 border-t border-slate-800/80">
                 <h4 className="text-xs font-bold text-slate-400 mb-3">오늘 결제 수단별 상세 내역</h4>
                 <div className="grid grid-cols-3 gap-2.5 text-center">
