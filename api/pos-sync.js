@@ -12,7 +12,6 @@ export default async function handler(req, res) {
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
-  // 개별 매장 요청 함수 (유니온 방화벽 회피용 브라우저 헤더 전면 강화)
   async function fetchStoreDataWithCookie(storeName, cookieValue) {
     try {
       if (!cookieValue) {
@@ -20,7 +19,7 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      console.log(`\n⏳ [${storeName}] 안전 모드로 데이터 조회 중...`);
+      console.log(`\n⏳ [${storeName}] 데이터 조회 중...`);
 
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
       const textData = await salesRes.text();
       console.log(`📦 [${storeName}] 유니온 응답 데이터(앞부분):`, textData.substring(0, 100));
 
-      // 만약 유니온이 HTML(로그인 페이지)을 뱉었다면 차단당한 것이므로 0원 처리하되 충돌 방지
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
         console.error(`🚨 [${storeName}] 유니온 보안 방화벽에 의해 쿠키가 거부되었습니다.`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
@@ -49,14 +47,29 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      const todaySales = parseInt(data.tot_amt || data.today_sales || data.tot_sale_amt || data.sale_amt || data.MONTH?.UnitAmt || 0, 10);
-      const totalCount = parseInt(data.tot_cnt || data.today_cnt || data.sale_cnt || data.cnt || 0, 10);
+      // 🔥 [핵심 수정] 엉뚱한 월간 데이터(UnitAmt)를 거르고, 진짜 오늘 매출 필드만 최우선으로 확실하게 추출!
+      const todaySales = parseInt(
+        data.tot_amt || 
+        data.today_sales || 
+        data.tot_sale_amt || 
+        data.sale_amt || 
+        0, 10
+      );
+
+      const totalCount = parseInt(
+        data.tot_cnt || 
+        data.today_cnt || 
+        data.sale_cnt || 
+        data.cnt || 
+        0, 10
+      );
+
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
       console.log(`✅ [${storeName}] 최종 매출: ${todaySales}원 / ${totalCount}건`);
 
       return {
-        connected: true,
+        connected: todaySales > 0 || totalCount > 0,
         todaySales: todaySales,
         totalCount: totalCount,
         avgPrice: avgPrice,
@@ -72,9 +85,7 @@ export default async function handler(req, res) {
   const yeoksamCookie = process.env.YEOKSAM_COOKIE;
 
   try {
-    // 동시 요청 시 유니온이 봇으로 오인하므로 순차적으로 안전하게 호출
     const gfcData = await fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie);
-    // 살짝 텀을 주어 방화벽 회피
     await new Promise(resolve => setTimeout(resolve, 500));
     const yeoksamData = await fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie);
 
