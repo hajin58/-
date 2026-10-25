@@ -3,7 +3,7 @@ import {
   Building2, TrendingUp, Users, Camera, 
   CreditCard, RefreshCw, CheckCircle2, 
   Clock, AlertTriangle, Lock, KeyRound, ExternalLink, Video,
-  X, ChevronRight, BarChart3, Sparkles
+  X, ChevronRight, BarChart3, Sparkles, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react';
 
 export default function App() {
@@ -15,7 +15,6 @@ export default function App() {
 
   const MASTER_PASSWORD = "821125";
 
-  // 🔒 등록된 IP와 환영 메시지 매핑 테이블
   const ALLOWED_IPS = {
     '115.136.113.62': '사장님 환영합니다.',
     '106.101.78.34': '안하진님 환영합니다.',
@@ -27,7 +26,6 @@ export default function App() {
     '106.101.91.20': '안세영님 환영합니다.'
   };
 
-  // 🔥 앱 실행 시 외부 API로 접속자 IP 실시간 확인 후 자동 인증
   useEffect(() => {
     const checkUserIp = async () => {
       if (sessionStorage.getItem('dearspoon_auth') === 'true') {
@@ -150,9 +148,9 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [posData, setPosData] = useState({
-    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 },
-    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 },
-    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 }
+    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
+    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } }
   });
 
   const fetchPosData = async () => {
@@ -191,6 +189,11 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
     
     const totalMonthSales = (posData.solsot_gfc?.monthSales || 0) + (posData.solsot_yeoksam?.monthSales || 0);
     const totalMonthCount = (posData.solsot_gfc?.monthCount || 0) + (posData.solsot_yeoksam?.monthCount || 0);
+    const totalPrevWeekSales = (posData.solsot_gfc?.prevWeekSales || 0) + (posData.solsot_yeoksam?.prevWeekSales || 0);
+
+    const totalCardAmt = (posData.solsot_gfc?.details?.cardAmt || 0) + (posData.solsot_yeoksam?.details?.cardAmt || 0);
+    const totalCashAmt = (posData.solsot_gfc?.details?.cashAmt || 0) + (posData.solsot_yeoksam?.details?.cashAmt || 0);
+    const totalCancelAmt = (posData.solsot_gfc?.details?.cancelAmt || 0) + (posData.solsot_yeoksam?.details?.cancelAmt || 0);
 
     return {
       name: "전체 매장 합산",
@@ -198,8 +201,14 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
       todaySales: totalSales,
       totalCount: totalCount,
       avgPrice: avgPrice,
+      prevWeekSales: totalPrevWeekSales,
       monthSales: totalMonthSales,
-      monthCount: totalMonthCount
+      monthCount: totalMonthCount,
+      details: {
+        cardAmt: totalCardAmt,
+        cashAmt: totalCashAmt,
+        cancelAmt: totalCancelAmt
+      }
     };
   };
 
@@ -207,6 +216,22 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const accumulatedAvgPrice = currentDisplay?.monthCount > 0 
     ? Math.round(currentDisplay.monthSales / currentDisplay.monthCount) 
     : 0;
+
+  // 🔥 전주 동요일 대비 증감률 계산
+  const getGrowthRate = (current, prev) => {
+    if (!prev || prev === 0) return null;
+    const diff = ((current - prev) / prev) * 100;
+    return {
+      percent: diff.toFixed(1),
+      isUp: diff > 0,
+      isZero: diff === 0
+    };
+  };
+
+  const growth = getGrowthRate(currentDisplay?.todaySales, currentDisplay?.prevWeekSales);
+
+  // 🔥 현재 월 이름 동적 추출 (예: 10월, 11월...)
+  const currentMonthName = `${new Date().getMonth() + 1}월`;
 
   const stores = [
     { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected, cctvCount: 4 },
@@ -217,31 +242,31 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
       {/* 상단 헤더 */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 shadow-md">
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3.5 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center font-bold text-slate-950 text-lg shadow-lg shadow-amber-500/20">
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
+              <h1 className="text-base sm:text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
               <p className="text-xs text-slate-400">솔솥 · 갓잇 실시간 통합 관제 시스템</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <button 
               onClick={onLogout}
-              className="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition"
+              className="px-3 py-2 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 transition"
             >
               잠금
             </button>
             <button 
               onClick={fetchPosData}
               disabled={loading}
-              className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-lg border border-slate-700 transition disabled:opacity-50"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-              <span>{loading ? '동기화 중...' : '동기화'}</span>
+              <span className="hidden sm:inline">{loading ? '동기화 중...' : '동기화'}</span>
             </button>
           </div>
         </div>
@@ -250,7 +275,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
       {/* 메인 컨텐츠 영역 */}
       <main className="max-w-7xl mx-auto px-4 mt-6 relative">
         
-        {/* 🔥 IP 자동 인증 성공 시 최상단에 큼직하게 뜨는 환영 배너 */}
         {welcomeMessage && (
           <div className="mb-6 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl flex items-center justify-between shadow-lg">
             <div className="flex items-center gap-3">
@@ -258,17 +282,18 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                 <Sparkles className="w-5 h-5 text-amber-400" />
               </div>
               <div>
-                <h2 className="text-base font-bold text-amber-400 tracking-tight">{welcomeMessage}</h2>
+                <h2 className="text-sm sm:text-base font-bold text-amber-400 tracking-tight">{welcomeMessage}</h2>
                 <p className="text-xs text-slate-300 mt-0.5">안전하게 보안 인증되었습니다. 오늘도 대박 나세요!</p>
               </div>
             </div>
           </div>
         )}
 
+        {/* 매장 선택 버튼 탭 */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedStore('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
+            className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all ${
               selectedStore === 'all'
                 ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
                 : 'bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800'
@@ -280,7 +305,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
             <button
               key={store.id}
               onClick={() => setSelectedStore(store.id)}
-              className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-2 transition-all ${
+              className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold whitespace-nowrap flex items-center gap-2 transition-all ${
                 selectedStore === store.id
                   ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
                   : 'bg-slate-900 border border-slate-800 text-slate-400 hover:bg-slate-800'
@@ -292,10 +317,11 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
           ))}
         </div>
 
-        <div className="flex gap-4 border-b border-slate-800 mb-6">
+        {/* 서브 탭 */}
+        <div className="flex gap-6 border-b border-slate-800 mb-6">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`pb-3 text-sm font-semibold transition relative ${
+            className={`pb-3 text-sm sm:text-base font-semibold transition relative ${
               activeTab === 'dashboard' ? 'text-amber-500' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -304,7 +330,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
           </button>
           <button
             onClick={() => setActiveTab('cctv')}
-            className={`pb-3 text-sm font-semibold transition relative ${
+            className={`pb-3 text-sm sm:text-base font-semibold transition relative ${
               activeTab === 'cctv' ? 'text-amber-500' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -315,56 +341,98 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative group">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-slate-400 font-medium">오늘 총 매출</span>
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
+            {/* 🔥 정보별 칸 크기 확대 및 모바일 반응형 세로 정렬 최적화 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              
+              {/* 1. 오늘 총 매출 카드 */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative group flex flex-col justify-between shadow-xl">
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-xs sm:text-sm text-slate-400 font-medium">오늘 총 매출</span>
+                    <TrendingUp className="w-5 h-5 text-emerald-400" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    {(currentDisplay?.todaySales || 0).toLocaleString()}원
+                  </div>
+                  
+                  {/* 🔥 전주 동요일 대비 증감률 정보 추가 */}
+                  <div className="mt-2.5 flex items-center gap-1.5 text-xs">
+                    {growth ? (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold ${
+                        growth.isUp ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                        growth.isZero ? 'bg-slate-800 text-slate-300' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      }`}>
+                        {growth.isUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : growth.isZero ? <Minus className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                        전주 동요일 대비 {growth.percent}% {growth.isUp ? '증가' : growth.isZero ? '동일' : '감소'}
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">전주 데이터 수집 중</span>
+                    )}
+                  </div>
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">
-                  {(currentDisplay?.todaySales || 0).toLocaleString()}원
+
+                <div className="mt-5 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+                  <span className="text-[11px] text-emerald-400 font-medium">
+                    {lastUpdated ? `동기화: ${lastUpdated}` : '연동 대기 중...'}
+                  </span>
+                  <button 
+                    onClick={() => setIsModalOpen(true)}
+                    className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-bold transition-colors bg-amber-500/10 px-3 py-1.5 rounded-lg border border-amber-500/20"
+                  >
+                    상세 현황 <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-                <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                  {lastUpdated ? `마지막 동기화: ${lastUpdated}` : '연동 대기 중...'}
-                </div>
-                <button 
-                  onClick={() => setIsModalOpen(true)}
-                  className="absolute bottom-4 right-4 flex items-center gap-1 text-xs text-amber-500/80 hover:text-amber-400 font-bold transition-colors"
-                >
-                  상세 현황 <ChevronRight className="w-3 h-3" />
-                </button>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-slate-400 font-medium">오늘 결제 건수</span>
-                  <CreditCard className="w-4 h-4 text-blue-400" />
+              {/* 2. 오늘 결제 건수 카드 */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-xs sm:text-sm text-slate-400 font-medium">오늘 결제 건수</span>
+                    <CreditCard className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
+                  <div className="text-xs text-slate-300 mt-2 font-medium">평균 객단가 약 {(currentDisplay?.avgPrice || 0).toLocaleString()}원</div>
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
-                <div className="text-xs text-slate-400 mt-1">오늘 객단가 약 {(currentDisplay?.avgPrice || 0).toLocaleString()}원</div>
+                <div className="mt-5 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400">
+                  실시간 POS 트랜잭션 집계 중
+                </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-slate-400 font-medium">테이블 점유율</span>
-                  <Users className="w-4 h-4 text-slate-500" />
+              {/* 3. 테이블 점유율 카드 */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-xs sm:text-sm text-slate-400 font-medium">테이블 점유율</span>
+                    <Users className="w-5 h-5 text-slate-500" />
+                  </div>
+                  <div className="text-2xl sm:text-3xl font-black text-slate-500 tracking-tight">- %</div>
+                  <div className="text-xs text-slate-500 mt-2">추가 센서 연동 준비 중</div>
                 </div>
-                <div className="text-2xl font-black text-slate-500 tracking-tight">- %</div>
-                <div className="text-xs text-slate-500 mt-1">POS 연동 준비 중</div>
+                <div className="mt-5 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500">
+                  홀 현황 모니터링 확장 예정
+                </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-slate-400 font-medium">POS 연동 상태</span>
-                  <CheckCircle2 className={`w-4 h-4 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
+              {/* 4. POS 연동 상태 카드 */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between shadow-xl">
+                <div>
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-xs sm:text-sm text-slate-400 font-medium">POS 연동 상태</span>
+                    <CheckCircle2 className={`w-5 h-5 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
+                  </div>
+                  <div className={`text-lg sm:text-xl font-bold ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
+                    {currentDisplay?.connected ? '유니온소프트 정상' : '연결 안 됨'}
+                  </div>
+                  <div className="text-xs text-slate-400 mt-2">
+                    {currentDisplay?.connected ? '역삼·GFC 세션 유지 양호' : '쿠키 값 및 세션 확인 필요'}
+                  </div>
                 </div>
-                <div className={`text-lg font-bold ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
-                  {currentDisplay?.connected ? '유니온소프트 정상' : '연결 안 됨'}
-                </div>
-                <div className="text-xs text-slate-400 mt-1">
-                  {currentDisplay?.connected ? 'API 서버 연동 상태 양호' : '데이터를 불러오지 못함'}
+                <div className="mt-5 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400">
+                  자동 프록시 서버 연동 완료
                 </div>
               </div>
+
             </div>
           </div>
         )}
@@ -433,14 +501,14 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         )}
       </main>
 
-      {/* 모달 */}
+      {/* 🔥 상세 현황 모달 (10월 매출 및 결제수단 상세 반영) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/50">
-              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-500" />
-                {currentDisplay?.name} 누적 현황
+                {currentDisplay?.name} {currentMonthName} 매출 현황
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition">
                 <X className="w-5 h-5" />
@@ -449,21 +517,40 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
             <div className="p-6 space-y-6">
               <div>
-                <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-500" /> 오픈 후 누적 현황
+                <h3 className="text-xs sm:text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-amber-500" /> {currentMonthName} 누적 실적 리포트
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 col-span-2 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1">총 누적 매출</p>
-                    <p className="text-3xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
+                    <p className="text-xs text-slate-400 mb-1">{currentMonthName} 총 누적 매출</p>
+                    <p className="text-2xl sm:text-3xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
                   </div>
                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
                     <p className="text-xs text-slate-400 mb-1">총 결제 건수</p>
-                    <p className="text-xl font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
+                    <p className="text-lg sm:text-xl font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
                   </div>
                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
                     <p className="text-xs text-slate-400 mb-1">평균 객단가</p>
-                    <p className="text-xl font-bold text-emerald-400">{(accumulatedAvgPrice || 0).toLocaleString()}원</p>
+                    <p className="text-lg sm:text-xl font-bold text-emerald-400">{(accumulatedAvgPrice || 0).toLocaleString()}원</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* 🔥 추가 결제 상세 내역 섹션 */}
+              <div className="pt-2 border-t border-slate-800">
+                <h4 className="text-xs font-bold text-slate-400 mb-2">오늘 결제 수단 상세</h4>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <p className="text-[10px] text-slate-400">카드</p>
+                    <p className="text-xs font-bold text-blue-400 mt-0.5">{(currentDisplay?.details?.cardAmt || 0).toLocaleString()}원</p>
+                  </div>
+                  <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <p className="text-[10px] text-slate-400">현금</p>
+                    <p className="text-xs font-bold text-emerald-400 mt-0.5">{(currentDisplay?.details?.cashAmt || 0).toLocaleString()}원</p>
+                  </div>
+                  <div className="bg-slate-950 p-2.5 rounded-lg border border-slate-800">
+                    <p className="text-[10px] text-slate-400">취소/환불</p>
+                    <p className="text-xs font-bold text-rose-400 mt-0.5">{(currentDisplay?.details?.cancelAmt || 0).toLocaleString()}원</p>
                   </div>
                 </div>
               </div>
