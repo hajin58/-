@@ -19,21 +19,26 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 방화벽 우회를 위한 최소한의 안정적 헤더 조합
+      console.log(`\n⏳ [${storeName}] 우회 접속 시도 중...`);
+
+      // 🔥 방화벽 차단을 피하기 위해 유니온이 요구하는 표준 브라우저 헤더 전면 장착
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
           "Cookie": `JSESSIONID=${cookieValue}`,
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Referer": "https://asp.unionpos.co.kr/",
-          "Accept": "application/json, text/javascript, */*; q=0.01"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          "Referer": "https://asp.unionpos.co.kr/main",
+          "Origin": "https://asp.unionpos.co.kr",
+          "Accept": "application/json, text/javascript, */*; q=0.01",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
         }
       });
 
       const textData = await salesRes.text();
-      
+      console.log(`📦 [${storeName}] 응답 결과(앞부분):`, textData.substring(0, 100));
+
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        console.error(`🚨 [${storeName}] 유니온 보안 방화벽에 의해 세션이 차단되었습니다.`);
+        console.error(`🚨 [${storeName}] 유니온 방화벽이 여전히 차단 중입니다.`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
@@ -41,24 +46,21 @@ export default async function handler(req, res) {
       try {
         data = JSON.parse(textData);
       } catch (e) {
-        console.error(`🚨 [${storeName}] JSON 파싱 오류`);
+        console.error(`🚨 [${storeName}] JSON 파싱 실패`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 데이터 오차 및 150만 원 뻥튀기 방지를 위한 엄격한 필드 검증
       const unitAmt = parseFloat(data.MONTH?.UnitAmt || data.unit_amt || 0);
       const totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 0, 10);
       
       let todaySales = parseInt(data.tot_amt || data.today_sales || 0, 10);
-      
-      // 만약 총 매출 필드가 없고 단가와 건수만 있다면 정확히 곱해서 산출
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
         todaySales = Math.round(unitAmt * totalCount);
       }
 
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : Math.round(unitAmt);
 
-      console.log(`✅ [${storeName}] 연동 성공: 매출 ${todaySales}원 / 건수 ${totalCount}건`);
+      console.log(`✅ [${storeName}] 정상 데이터 획득: 매출 ${todaySales}원 / 건수 ${totalCount}건`);
 
       return {
         connected: true,
@@ -68,7 +70,7 @@ export default async function handler(req, res) {
       };
 
     } catch (err) {
-      console.error(`❌ [${storeName}] 통신 오류:`, err);
+      console.error(`❌ [${storeName}] 통신 에러:`, err);
       return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
     }
   }
