@@ -252,10 +252,11 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-base sm:text-lg font-black text-white tracking-tight flex items-center gap-2">
-                디어스푼 <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">LIVE</span>
-              </h1>
-              <p className="text-xs text-slate-400">솔솥 · 갓잇 실시간 통합 경영 포털</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black text-white tracking-tight">디어스푼</h1>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">LIVE</span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-medium tracking-tight">Made by 안하진</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
