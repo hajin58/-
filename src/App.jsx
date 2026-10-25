@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Building2, TrendingUp, Users, ShieldAlert, Camera, 
   CreditCard, RefreshCw, CheckCircle2, 
-  Clock, AlertTriangle, Lock, KeyRound, ExternalLink, Video
+  Clock, AlertTriangle, Lock, KeyRound, ExternalLink, Video,
+  X, ChevronRight // 🔥 모달용 아이콘 2개 추가
 } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -103,11 +104,14 @@ function MainDashboardContent({ onLogout }) {
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
   
-  // 🔥 [수정됨] 모든 가짜 예시 데이터를 0으로 초기화
+  // 🔥 [추가됨] 모달창 열림/닫힘 상태
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
+  // 🔥 백엔드에서 내려주는 새 데이터 구조(monthSales, details)에 맞춰 초기값 세팅
   const [posData, setPosData] = useState({
-    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 },
-    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 },
-    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 }
+    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
+    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } }
   });
 
   const fetchPosData = async () => {
@@ -135,25 +139,37 @@ function MainDashboardContent({ onLogout }) {
     return () => clearInterval(interval);
   }, []);
 
+  // 🔥 전체 매장 합산일 때 월간 매출과 세부 내역까지 전부 합산되도록 로직 강화
   const getCalculatedData = () => {
-    if (selectedStore === 'solsot_gfc') {
-      return posData.solsot_gfc;
-    } else if (selectedStore === 'solsot_yeoksam') {
-      return posData.solsot_yeoksam;
-    } else if (selectedStore === 'goteat_seolleung') {
-      return posData.goteat_seolleung;
-    } else {
-      const totalSales = (posData.solsot_gfc?.todaySales || 0) + (posData.solsot_yeoksam?.todaySales || 0);
-      const totalCount = (posData.solsot_gfc?.totalCount || 0) + (posData.solsot_yeoksam?.totalCount || 0);
-      const avgPrice = totalCount > 0 ? Math.round(totalSales / totalCount) : 0;
-      return {
-        name: "전체 매장 합산",
-        connected: posData.solsot_gfc?.connected && posData.solsot_yeoksam?.connected,
-        todaySales: totalSales,
-        totalCount: totalCount,
-        avgPrice: avgPrice
-      };
-    }
+    if (selectedStore === 'solsot_gfc') return posData.solsot_gfc;
+    if (selectedStore === 'solsot_yeoksam') return posData.solsot_yeoksam;
+    if (selectedStore === 'goteat_seolleung') return posData.goteat_seolleung;
+    
+    const totalSales = (posData.solsot_gfc?.todaySales || 0) + (posData.solsot_yeoksam?.todaySales || 0);
+    const totalCount = (posData.solsot_gfc?.totalCount || 0) + (posData.solsot_yeoksam?.totalCount || 0);
+    const avgPrice = totalCount > 0 ? Math.round(totalSales / totalCount) : 0;
+    
+    // 전체 누적 데이터 합산
+    const totalMonthSales = (posData.solsot_gfc?.monthSales || 0) + (posData.solsot_yeoksam?.monthSales || 0);
+    const totalMonthCount = (posData.solsot_gfc?.monthCount || 0) + (posData.solsot_yeoksam?.monthCount || 0);
+    const totalCardAmt = (posData.solsot_gfc?.details?.cardAmt || 0) + (posData.solsot_yeoksam?.details?.cardAmt || 0);
+    const totalCashAmt = (posData.solsot_gfc?.details?.cashAmt || 0) + (posData.solsot_yeoksam?.details?.cashAmt || 0);
+    const totalCancelAmt = (posData.solsot_gfc?.details?.cancelAmt || 0) + (posData.solsot_yeoksam?.details?.cancelAmt || 0);
+
+    return {
+      name: "전체 매장 합산",
+      connected: posData.solsot_gfc?.connected && posData.solsot_yeoksam?.connected,
+      todaySales: totalSales,
+      totalCount: totalCount,
+      avgPrice: avgPrice,
+      monthSales: totalMonthSales,
+      monthCount: totalMonthCount,
+      details: {
+        cardAmt: totalCardAmt,
+        cashAmt: totalCashAmt,
+        cancelAmt: totalCancelAmt
+      }
+    };
   };
 
   const currentDisplay = getCalculatedData();
@@ -164,7 +180,6 @@ function MainDashboardContent({ onLogout }) {
     { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 중순 오픈예정', posConnected: false, cctvCount: 2 },
   ];
 
-  // 🔥 [수정됨] 시간대별 매출 그래프 가짜 데이터 모두 0으로 초기화
   const hourlySales = [
     { time: '11시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
     { time: '12시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
@@ -178,7 +193,7 @@ function MainDashboardContent({ onLogout }) {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-12">
       {/* 상단 헤더 */}
-      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 px-4 py-3 shadow-md">
+      <header className="bg-slate-900 border-b border-slate-800 sticky top-0 z-40 px-4 py-3 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center font-bold text-slate-950 text-lg shadow-lg shadow-amber-500/20">
@@ -209,7 +224,7 @@ function MainDashboardContent({ onLogout }) {
       </header>
 
       {/* 메인 컨텐츠 영역 */}
-      <main className="max-w-7xl mx-auto px-4 mt-6">
+      <main className="max-w-7xl mx-auto px-4 mt-6 relative">
         {/* 매장 선택 필터 */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
           <button
@@ -264,17 +279,26 @@ function MainDashboardContent({ onLogout }) {
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+              
+              {/* 🔥 오늘 총 매출 카드 (상세보기 버튼 추가) */}
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 relative group">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs text-slate-400 font-medium">오늘 총 매출</span>
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="text-2xl font-black text-white tracking-tight">
-                  {currentDisplay.todaySales.toLocaleString()}원
+                  {(currentDisplay?.todaySales || 0).toLocaleString()}원
                 </div>
                 <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-medium">
                   {lastUpdated ? `마지막 동기화: ${lastUpdated}` : '연동 대기 중...'}
                 </div>
+                {/* 우측 하단 상세 내역 보기 버튼 */}
+                <button 
+                  onClick={() => setIsModalOpen(true)}
+                  className="absolute bottom-4 right-4 flex items-center gap-1 text-xs text-amber-500/80 hover:text-amber-400 font-bold transition-colors"
+                >
+                  상세 내역 <ChevronRight className="w-3 h-3" />
+                </button>
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -282,11 +306,10 @@ function MainDashboardContent({ onLogout }) {
                   <span className="text-xs text-slate-400 font-medium">총 결제 건수</span>
                   <CreditCard className="w-4 h-4 text-blue-400" />
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">{currentDisplay.totalCount}건</div>
-                <div className="text-xs text-slate-400 mt-1">객단가 약 {currentDisplay.avgPrice.toLocaleString()}원</div>
+                <div className="text-2xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
+                <div className="text-xs text-slate-400 mt-1">객단가 약 {(currentDisplay?.avgPrice || 0).toLocaleString()}원</div>
               </div>
 
-              {/* 🔥 [수정됨] 82% 가짜 데이터 삭제 처리 */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs text-slate-400 font-medium">테이블 점유율</span>
@@ -299,13 +322,13 @@ function MainDashboardContent({ onLogout }) {
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs text-slate-400 font-medium">POS 연동 상태</span>
-                  <CheckCircle2 className={`w-4 h-4 ${currentDisplay.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
+                  <CheckCircle2 className={`w-4 h-4 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
                 </div>
-                <div className={`text-lg font-bold ${currentDisplay.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
-                  {currentDisplay.connected ? '유니온소프트 정상' : '연결 안 됨'}
+                <div className={`text-lg font-bold ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
+                  {currentDisplay?.connected ? '유니온소프트 정상' : '연결 안 됨'}
                 </div>
                 <div className="text-xs text-slate-400 mt-1">
-                  {currentDisplay.connected ? 'API 서버 연동 상태 양호' : '데이터를 불러오지 못함'}
+                  {currentDisplay?.connected ? 'API 서버 연동 상태 양호' : '데이터를 불러오지 못함'}
                 </div>
               </div>
             </div>
@@ -338,7 +361,6 @@ function MainDashboardContent({ onLogout }) {
         {/* 탭 2: CCTV 관제 */}
         {activeTab === 'cctv' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* 솔솥 GFC점 */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
@@ -353,7 +375,6 @@ function MainDashboardContent({ onLogout }) {
               </div>
             </div>
 
-            {/* 솔솥 역삼점 */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg border-emerald-500/30">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
@@ -385,7 +406,6 @@ function MainDashboardContent({ onLogout }) {
               </div>
             </div>
 
-            {/* 갓잇 선릉점 */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
@@ -402,6 +422,51 @@ function MainDashboardContent({ onLogout }) {
           </div>
         )}
       </main>
+
+      {/* 🔥 매출 상세 내역 오버레이 모달창 */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            
+            <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/50">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-amber-500" />
+                {currentDisplay?.name} 매출 상세
+              </h2>
+              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-5">
+              <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                <p className="text-xs text-slate-400 mb-1">이번 달 누적 총 매출</p>
+                <p className="text-2xl font-black text-white">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
+                <p className="text-xs text-emerald-400 mt-1">총 {(currentDisplay?.monthCount || 0).toLocaleString()}건 결제 완료</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                  <p className="text-xs text-slate-400 mb-1 flex items-center gap-1"><CreditCard className="w-3 h-3"/> 카드 결제</p>
+                  <p className="text-lg font-bold text-blue-400">{(currentDisplay?.details?.cardAmt || 0).toLocaleString()}원</p>
+                </div>
+                <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                  <p className="text-xs text-slate-400 mb-1 flex items-center gap-1"><Building2 className="w-3 h-3"/> 현금/기타</p>
+                  <p className="text-lg font-bold text-emerald-400">{(currentDisplay?.details?.cashAmt || 0).toLocaleString()}원</p>
+                </div>
+              </div>
+
+              {currentDisplay?.details?.cancelAmt < 0 && (
+                <div className="flex items-start gap-2 text-xs text-rose-400 bg-rose-500/10 p-3 rounded-lg border border-rose-500/20">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p>오늘 취소된 승인 금액이 <strong>{(currentDisplay.details.cancelAmt * -1).toLocaleString()}원</strong> 있습니다.</p>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
     </div>
   );
 }
