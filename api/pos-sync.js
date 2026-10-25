@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   async function fetchStoreDataWithCookie(storeName, cookieValue) {
     try {
-      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 };
+      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
 
       const now = new Date();
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
@@ -50,8 +50,7 @@ export default async function handler(req, res) {
       try { data = JSON.parse(textData); } catch (e) { data = {}; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
-      // 🔥 Vercel Logs에서 확인하기 위한 디버깅 출력 추가
-      if (storeName === "솔솥 역삼점") {
+      if (storeName === "솔솥 역삼점" || storeName === "솔솥 GFC점") {
         console.log("=====================================");
         console.log(`[${storeName}] 데이터 키 목록:`, Object.keys(data));
         console.log(`[${storeName}] 원본 데이터 샘플:`, JSON.stringify(data).substring(0, 500));
@@ -83,6 +82,9 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
+      // 🔥 POS 응답에서 시간대별 데이터 추출 (대소문자/키 이름 대응을 위해 여러 경우의 수 확인)
+      const timeData = data.TIME || data.Time || data.time || {};
+
       return {
         connected: true,
         todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
@@ -90,11 +92,12 @@ export default async function handler(req, res) {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
           cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
-        }
+        },
+        TIME: timeData // 🔥 프론트엔드로 시간대별 데이터 전달
       };
 
     } catch (err) {
-      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 };
+      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
     }
   }
 
@@ -113,7 +116,7 @@ export default async function handler(req, res) {
       stores: {
         solsot_gfc: { name: "솔솥 GFC점", ...gfcData },
         solsot_yeoksam: { name: "솔솥 역삼점", ...yeoksamData },
-        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 }
+        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} }
       }
     });
   } catch (error) {
