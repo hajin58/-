@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // CORS 설정 (프론트엔드와 원활한 통신 허용)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
 
@@ -7,47 +6,26 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // GET 요청 외에는 차단
   if (req.method !== 'GET') {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
-  const UNION_LOGIN_URL = "https://asp.unionpos.co.kr/loginCheck"; 
 
-  // 유니온 ASP 실시간 자동 로그인 & 데이터 조회 로직
-  async function fetchStoreData(storeName, id, pw) {
+  // 🔒 자동 로그인 대신, 브라우저에서 추출한 인증 쿠키를 직접 주입하는 방식
+  async function fetchStoreDataWithCookie(storeName, cookieValue) {
     try {
-      console.log(`\n⏳ [${storeName}] 로그인 시도 중... (ID: ${id})`);
-
-      // 봇(Bot) 차단 방지를 위해 'User-Agent(신분증)' 추가하여 로그인 시도
-      const loginRes = await fetch(UNION_LOGIN_URL, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' 
-        },
-        body: new URLSearchParams({ 
-          userId: id,    
-          userPw: pw     
-        }),
-        redirect: 'manual' 
-      });
-
-      // 발급받은 쿠키 빼오기
-      const cookieHeader = loginRes.headers.get('set-cookie') || '';
-      console.log(`🍪 [${storeName}] 로그인 응답 코드: ${loginRes.status}, 쿠키:`, cookieHeader ? "성공!" : "실패(쿠키 없음)");
-
-      if (!cookieHeader) {
-         console.error(`🚨 [${storeName}] 로봇으로 의심받아 쿠키 발급이 거부되었습니다.`);
-         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
+      if (!cookieValue) {
+        console.error(`🚨 [${storeName}] 쿠키(JSESSIONID)가 등록되지 않았습니다.`);
+        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 프록시 서버를 통해 '새 쿠키'로 매출 데이터 조회
+      console.log(`\n⏳ [${storeName}] 고정 쿠키로 데이터 조회 시도...`);
+
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
-          "Cookie": cookieHeader,
+          "Cookie": `JSESSIONID=${cookieValue}`,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
       });
@@ -59,10 +37,9 @@ export default async function handler(req, res) {
       try {
         data = JSON.parse(textData);
       } catch (e) {
-        console.error(`🚨 [${storeName}] JSON 파싱 실패! 유니온 측 응답이 이상합니다.`);
+        console.error(`🚨 [${storeName}] JSON 파싱 실패! 쿠키가 만료되었거나 응답이 이상합니다.`);
       }
 
-      // 매출액, 결제건수, 객단가 정제
       const todaySales = parseInt(data.tot_amt || data.today_sales || data.tot_sale_amt || data.sale_amt || 0, 10);
       const totalCount = parseInt(data.tot_cnt || data.today_cnt || data.sale_cnt || data.cnt || 0, 10);
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
@@ -70,7 +47,7 @@ export default async function handler(req, res) {
       console.log(`✅ [${storeName}] 최종 매출: ${todaySales}원 / ${totalCount}건`);
 
       return {
-        connected: true,
+        connected: todaySales > 0 || totalCount > 0,
         todaySales: todaySales,
         totalCount: totalCount,
         avgPrice: avgPrice,
@@ -82,16 +59,14 @@ export default async function handler(req, res) {
     }
   }
 
-  // Vercel 환경변수에서 지점별 아이디/비번 가져오기
-  const gfcId = process.env.GFC_POS_ID;
-  const gfcPw = process.env.GFC_POS_PW;
-  const yeoksamId = process.env.YEOKSAM_POS_ID;
-  const yeoksamPw = process.env.YEOKSAM_POS_PW;
+  // Vercel 환경변수에서 지점별 'JSESSIONID 쿠키 값' 가져오기
+  const gfcCookie = process.env.GFC_COOKIE;
+  const yeoksamCookie = process.env.YEOKSAM_COOKIE;
 
   try {
     const [gfcData, yeoksamData] = await Promise.all([
-      fetchStoreData("솔솥 GFC점", gfcId, gfcPw),
-      fetchStoreData("솔솥 역삼점", yeoksamId, yeoksamPw)
+      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie),
+      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie)
     ]);
 
     return res.status(200).json({
