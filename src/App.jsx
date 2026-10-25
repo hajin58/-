@@ -15,34 +15,45 @@ export default function App() {
 
   const MASTER_PASSWORD = "821125";
 
-  // 🔥 앱 실행 시 IP 자동 인증 체크
+  // 🔒 등록된 IP와 환영 메시지 매핑 테이블
+  const ALLOWED_IPS = {
+    '115.136.113.62': '사장님 환영합니다.',
+    '106.101.78.34': '안하진님 환영합니다.',
+    '39.7.28.242': '박지현 사장님 환영합니다.',
+    '106.101.203.145': '박지현 사장님 환영합니다.',
+    '106.101.211.245': '안민호 사장님 환영합니다.',
+    '106.101.91.20': '안세영님 환영합니다.'
+  };
+
+  // 🔥 앱 실행 시 외부 API로 접속자 IP 실시간 확인 후 자동 인증
   useEffect(() => {
     const checkUserIp = async () => {
+      // 이미 세션에 인증 정보가 있으면 패스
+      if (sessionStorage.getItem('dearspoon_auth') === 'true') {
+        setIsAuthenticated(true);
+        setIsCheckingIp(false);
+        return;
+      }
+
       try {
-        const res = await fetch('/api/check-ip');
-        if (res.ok) {
-          const data = await res.json();
-          if (data.allowed) {
-            // 등록된 IP인 경우 비밀번호 생략 및 환영 메시지 세팅
-            setWelcomeMessage(data.message);
-            setIsAuthenticated(true);
-            sessionStorage.setItem('dearspoon_auth', 'true');
-          }
+        const res = await fetch('https://api.ipify.org?format=json');
+        const data = await res.json();
+        const clientIp = data.ip;
+
+        if (ALLOWED_IPS[clientIp]) {
+          // 화이트리스트에 있는 IP인 경우 비밀번호 생략 및 환영 메시지 세팅
+          setWelcomeMessage(ALLOWED_IPS[clientIp]);
+          setIsAuthenticated(true);
+          sessionStorage.setItem('dearspoon_auth', 'true');
         }
       } catch (err) {
-        console.error("IP 체크 실패:", err);
+        console.error("IP 확인 실패:", err);
       } finally {
         setIsCheckingIp(false);
       }
     };
 
-    const authStatus = sessionStorage.getItem('dearspoon_auth');
-    if (authStatus === 'true') {
-      setIsAuthenticated(true);
-      setIsCheckingIp(false);
-    } else {
-      checkUserIp();
-    }
+    checkUserIp();
   }, []);
 
   const handleLogin = (e) => {
@@ -61,6 +72,7 @@ export default function App() {
     sessionStorage.removeItem('dearspoon_auth');
     setIsAuthenticated(false);
     setWelcomeMessage('');
+    window.location.reload(); // 로그아웃 시 IP 재체크를 위해 새로고침
   };
 
   if (isCheckingIp) {
@@ -214,7 +226,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
-                {/* 🔥 IP 인증 성공 시 환영 메시지 뱃지 출력 */}
+                {/* 🔥 IP 자동 인증 성공 시 환영 메시지 뱃지 출력 */}
                 {welcomeMessage && (
                   <span className="hidden md:inline-flex items-center gap-1 text-[11px] bg-amber-500/10 text-amber-400 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-medium">
                     <Sparkles className="w-3 h-3" /> {welcomeMessage}
