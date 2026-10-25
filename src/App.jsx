@@ -78,7 +78,7 @@ export default function App() {
       <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-amber-500"></div>
-          <p className="text-xs text-slate-400 tracking-wider">보안 네트워크 확인 중...</p>
+          <p className="text-xs text-slate-400 tracking-wider font-medium">보안 네트워크 확인 중...</p>
         </div>
       </div>
     );
@@ -90,7 +90,7 @@ export default function App() {
         <div className="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-40 -right-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl relative z-10">
+        <div className="bg-slate-900/90 backdrop-blur-2xl border border-slate-800/80 rounded-3xl p-8 max-w-md w-full shadow-2xl relative z-10">
           <div className="flex flex-col items-center mb-8 text-center">
             <div className="w-16 h-16 bg-gradient-to-tr from-amber-500/20 to-amber-400/10 rounded-2xl flex items-center justify-center mb-4 border border-amber-500/30 shadow-lg shadow-amber-500/10">
               <Lock className="w-8 h-8 text-amber-400" />
@@ -110,7 +110,7 @@ export default function App() {
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="비밀번호 입력"
-                  className="w-full bg-slate-950/80 border border-slate-800 rounded-xl px-4 py-3.5 pl-11 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all tracking-widest text-lg font-mono shadow-inner"
+                  className="w-full bg-slate-950/90 border border-slate-800 rounded-2xl px-4 py-3.5 pl-11 text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition-all tracking-widest text-lg font-mono shadow-inner"
                   autoFocus
                   maxLength={6}
                 />
@@ -119,7 +119,7 @@ export default function App() {
             </div>
 
             {errorMessage && (
-              <div className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 p-3.5 rounded-xl border border-rose-500/20 animate-shake">
+              <div className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 p-3.5 rounded-2xl border border-rose-500/20 animate-shake">
                 <span className="shrink-0">⚠️</span>
                 <span>{errorMessage}</span>
               </div>
@@ -127,7 +127,7 @@ export default function App() {
 
             <button
               type="submit"
-              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold py-3.5 rounded-xl transition-all duration-200 shadow-lg shadow-amber-500/25 active:scale-[0.99]"
+              className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-extrabold py-3.5 rounded-2xl transition-all duration-200 shadow-xl shadow-amber-500/20 active:scale-[0.99]"
             >
               안전 접속 승인
             </button>
@@ -236,7 +236,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const growth = getGrowthRate(currentDisplay?.todaySales, currentDisplay?.prevWeekSales);
   const currentMonthName = `${new Date().getMonth() + 1}월`;
 
-  // 🔥 시간대별 + 지점별 합산 색상 그래프 로직 (정리 완료)
   const timeChartData = useMemo(() => {
     const defaultHours = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
     let hourData = {};
@@ -282,32 +281,33 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-16 selection:bg-amber-500 selection:text-slate-950">
-      <header className="bg-slate-900/80 backdrop-blur-md border-b border-slate-800/80 sticky top-0 z-40 px-4 sm:px-6 py-3.5 shadow-lg shadow-black/20">
+    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-20 selection:bg-amber-500 selection:text-slate-950">
+      {/* 헤더 부분 */}
+      <header className="bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 sticky top-0 z-40 px-4 sm:px-8 py-4 shadow-2xl shadow-black/40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-tr from-amber-500 to-amber-400 rounded-2xl flex items-center justify-center font-black text-slate-950 text-lg shadow-md shadow-amber-500/20">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 bg-gradient-to-tr from-amber-500 via-amber-400 to-amber-300 rounded-2xl flex items-center justify-center font-black text-slate-950 text-xl shadow-lg shadow-amber-500/25 ring-2 ring-amber-400/20">
               <Building2 className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-base sm:text-lg font-black text-white tracking-tight">디어스푼</h1>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">LIVE</span>
+                <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">디어스푼</h1>
+                <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 tracking-wider shadow-inner">LIVE</span>
               </div>
-              <p className="text-[11px] text-slate-400 font-medium tracking-tight">Made by 안하진</p>
+              <p className="text-[11px] text-slate-400 font-medium tracking-tight mt-0.5">Made by 안하진</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button 
               onClick={onLogout}
-              className="px-3.5 py-2 text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-xl border border-slate-700/60 transition shadow-sm"
+              className="px-4 py-2.5 text-xs font-bold bg-slate-800/80 hover:bg-slate-700 text-slate-300 rounded-2xl border border-slate-700/60 transition-all shadow-sm active:scale-95"
             >
               잠금
             </button>
             <button 
               onClick={fetchPosData}
               disabled={loading}
-              className="flex items-center gap-1.5 text-xs font-semibold bg-slate-800/80 hover:bg-slate-700 text-slate-300 px-3.5 py-2 rounded-xl border border-slate-700/60 transition disabled:opacity-50 shadow-sm"
+              className="flex items-center gap-2 text-xs font-bold bg-gradient-to-r from-slate-800 to-slate-800/80 hover:from-slate-700 hover:to-slate-700 text-slate-200 px-4 py-2.5 rounded-2xl border border-slate-700/60 transition-all disabled:opacity-50 shadow-sm active:scale-95"
             >
               <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${loading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">{loading ? '동기화 중...' : '새로고침'}</span>
@@ -316,29 +316,30 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 mt-6 relative space-y-6">
+      <main className="max-w-7xl mx-auto px-4 sm:px-8 mt-6 relative space-y-6">
         
         {welcomeMessage && (
-          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 p-4 sm:p-5 rounded-2xl flex items-center justify-between shadow-lg shadow-amber-500/5 backdrop-blur-sm">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/40 shadow-inner">
-                <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
+          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 p-5 rounded-3xl flex items-center justify-between shadow-xl shadow-amber-500/5 backdrop-blur-md">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/40 shadow-inner">
+                <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
               </div>
               <div>
-                <h2 className="text-sm sm:text-base font-bold text-amber-400 tracking-tight">{welcomeMessage}</h2>
-                <p className="text-xs text-slate-300 mt-0.5">안전하게 보안 인증되었습니다. 오늘도 성공적인 하루되세요!</p>
+                <h2 className="text-base sm:text-lg font-black text-amber-400 tracking-tight">{welcomeMessage}</h2>
+                <p className="text-xs text-slate-300 mt-0.5 font-medium">안전하게 보안 인증되었습니다. 오늘도 성공적인 하루되세요!</p>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {/* 매장 탭 선택 버튼 */}
+        <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedStore('all')}
-            className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all flex items-center gap-2 ${
+            className={`px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-black whitespace-nowrap transition-all flex items-center gap-2 ${
               selectedStore === 'all'
-                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 scale-[1.02]'
-                : 'bg-slate-900/90 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-xl shadow-amber-500/25 scale-[1.02]'
+                : 'bg-slate-900/80 border border-slate-800 text-slate-400 hover:bg-slate-800/80 hover:text-white'
             }`}
           >
             <span>전체 매장 합산</span>
@@ -347,64 +348,66 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
             <button
               key={store.id}
               onClick={() => setSelectedStore(store.id)}
-              className={`px-5 py-3 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap flex items-center gap-2.5 transition-all ${
+              className={`px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-black whitespace-nowrap flex items-center gap-3 transition-all ${
                 selectedStore === store.id
-                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-lg shadow-amber-500/20 scale-[1.02]'
-                  : 'bg-slate-900/90 border border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 shadow-xl shadow-amber-500/25 scale-[1.02]'
+                  : 'bg-slate-900/80 border border-slate-800 text-slate-400 hover:bg-slate-800/80 hover:text-white'
               }`}
             >
               <span>{store.name}</span>
-              <span className={`w-2 h-2 rounded-full ring-2 ring-slate-950/30 ${store.posConnected ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-rose-500'}`} />
+              <span className={`w-2.5 h-2.5 rounded-full ring-4 ring-slate-950/40 ${store.posConnected ? 'bg-emerald-400 shadow-md shadow-emerald-400/60 animate-pulse' : 'bg-rose-500'}`} />
             </button>
           ))}
         </div>
 
-        <div className="flex gap-6 border-b border-slate-800/80">
+        {/* 대시보드 / CCTV 메인 네비게이션 탭 */}
+        <div className="flex gap-8 border-b border-slate-800/80 pt-2">
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`pb-3 text-sm sm:text-base font-bold transition relative flex items-center gap-2 ${
+            className={`pb-3.5 text-sm sm:text-base font-black transition-all relative flex items-center gap-2.5 ${
               activeTab === 'dashboard' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Activity className="w-4 h-4" />
             매출 & 통합 현황
-            {activeTab === 'dashboard' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full" />}
+            {activeTab === 'dashboard' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full shadow-lg shadow-amber-500/50" />}
           </button>
           <button
             onClick={() => setActiveTab('cctv')}
-            className={`pb-3 text-sm sm:text-base font-bold transition relative flex items-center gap-2 ${
+            className={`pb-3.5 text-sm sm:text-base font-black transition-all relative flex items-center gap-2.5 ${
               activeTab === 'cctv' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'
             }`}
           >
             <Camera className="w-4 h-4" />
             실시간 CCTV 통합 관제
-            {activeTab === 'cctv' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full" />}
+            {activeTab === 'cctv' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full shadow-lg shadow-amber-500/50" />}
           </button>
         </div>
 
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
+            {/* 상단 4개 핵심 지표 카드 */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               
-              <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 relative group flex flex-col justify-between shadow-xl hover:border-slate-700/80 transition-all">
+              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 relative group flex flex-col justify-between shadow-2xl hover:border-slate-700/80 transition-all backdrop-blur-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-semibold text-slate-400">오늘 총 매출</span>
-                    <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center border border-emerald-500/20">
-                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs sm:text-sm font-bold text-slate-400">오늘 총 매출</span>
+                    <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                      <TrendingUp className="w-5 h-5 text-emerald-400" />
                     </div>
                   </div>
                   <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
                     {(currentDisplay?.todaySales || 0).toLocaleString()}원
                   </div>
                   
-                  <div className="mt-3 flex items-center gap-1.5 text-xs">
+                  <div className="mt-3.5 flex items-center gap-1.5 text-xs">
                     {growth ? (
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg font-bold ${
-                        growth.isUp ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
-                        growth.isZero ? 'bg-slate-800 text-slate-300' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold ${
+                        growth.isUp ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 
+                        growth.isZero ? 'bg-slate-800 text-slate-300' : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
                       }`}>
-                        {growth.isUp ? <ArrowUpRight className="w-3.5 h-3.5" /> : growth.isZero ? <Minus className="w-3.5 h-3.5" /> : <ArrowDownRight className="w-3.5 h-3.5" />}
+                        {growth.isUp ? <ArrowUpRight className="w-4 h-4" /> : growth.isZero ? <Minus className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
                         전주 동요일 대비 {growth.percent}% {growth.isUp ? '증가' : growth.isZero ? '동일' : '감소'}
                       </span>
                     ) : (
@@ -414,72 +417,72 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-emerald-400 font-medium">
+                  <span className="text-[11px] text-emerald-400 font-bold">
                     {lastUpdated ? `동기화: ${lastUpdated}` : '연동 대기 중...'}
                   </span>
                   <button 
                     onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-bold transition-all bg-amber-500/10 px-3.5 py-2 rounded-xl border border-amber-500/20 shadow-sm active:scale-95"
+                    className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-extrabold transition-all bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/25 shadow-sm active:scale-95"
                   >
                     상세 현황 <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
               </div>
 
-              <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 flex flex-col justify-between shadow-xl">
+              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-semibold text-slate-400">오늘 결제 건수</span>
-                    <div className="w-9 h-9 bg-blue-500/10 rounded-xl flex items-center justify-center border border-blue-500/20">
-                      <CreditCard className="w-4 h-4 text-blue-400" />
+                    <span className="text-xs sm:text-sm font-bold text-slate-400">오늘 결제 건수</span>
+                    <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 shadow-inner">
+                      <CreditCard className="w-5 h-5 text-blue-400" />
                     </div>
                   </div>
                   <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
-                  <div className="text-xs text-slate-300 mt-3 font-semibold bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800/80 inline-block">
-                    객단가 약 <span className="text-amber-400 font-bold">{(currentDisplay?.avgPrice || 0).toLocaleString()}원</span>
+                  <div className="text-xs text-slate-300 mt-3.5 font-bold bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 inline-block shadow-inner">
+                    객단가 약 <span className="text-amber-400 font-black">{(currentDisplay?.avgPrice || 0).toLocaleString()}원</span>
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse"></span>
+                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2 font-medium">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
                   실시간 POS 트랜잭션 집계 중
                 </div>
               </div>
 
-              <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 flex flex-col justify-between shadow-xl">
+              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-semibold text-slate-400">테이블 점유율</span>
-                    <div className="w-9 h-9 bg-slate-800 rounded-xl flex items-center justify-center border border-slate-700">
-                      <Users className="w-4 h-4 text-slate-400" />
+                    <span className="text-xs sm:text-sm font-bold text-slate-400">테이블 점유율</span>
+                    <div className="w-10 h-10 bg-slate-800/80 rounded-2xl flex items-center justify-center border border-slate-700/80 shadow-inner">
+                      <Users className="w-5 h-5 text-slate-400" />
                     </div>
                   </div>
                   <div className="text-2xl sm:text-3xl font-black text-slate-400 tracking-tight">- %</div>
-                  <div className="text-xs text-slate-500 mt-3 font-medium bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800/80 inline-block">
+                  <div className="text-xs text-slate-500 mt-3.5 font-medium bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 inline-block shadow-inner">
                     스마트 센서 연동 준비 중
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500">
+                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 font-medium">
                   홀 현황 모니터링 확장 예정
                 </div>
               </div>
 
-              <div className="bg-gradient-to-b from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 flex flex-col justify-between shadow-xl">
+              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
                 <div>
                   <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-semibold text-slate-400">POS 연동 상태</span>
-                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center border ${currentDisplay?.connected ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-rose-500/10 border-rose-500/20'}`}>
-                      <CheckCircle2 className={`w-4 h-4 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
+                    <span className="text-xs sm:text-sm font-bold text-slate-400">POS 연동 상태</span>
+                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border shadow-inner ${currentDisplay?.connected ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-rose-500/10 border-rose-500/25'}`}>
+                      <CheckCircle2 className={`w-5 h-5 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
                     </div>
                   </div>
-                  <div className={`text-lg sm:text-xl font-bold ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
+                  <div className={`text-lg sm:text-xl font-black ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
                     {currentDisplay?.connected ? '유니온소프트 정상' : '연결 안 됨'}
                   </div>
-                  <div className="text-xs text-slate-400 mt-3 font-medium bg-slate-950/60 px-3 py-2 rounded-xl border border-slate-800/80 inline-block">
+                  <div className="text-xs text-slate-400 mt-3.5 font-semibold bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 inline-block shadow-inner">
                     {currentDisplay?.connected ? '역삼 · GFC 세션 안정적' : '세션 및 쿠키 확인 필요'}
                   </div>
                 </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2 font-medium">
+                  <ShieldCheck className="w-4 h-4 text-amber-400" />
                   프록시 자동 세션 유지
                 </div>
               </div>
@@ -488,10 +491,10 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
             {/* 매출 기여도 카드 (전체 탭일 때 + 매출이 0 이상일 때만 표시) */}
             {selectedStore === 'all' && (currentDisplay?.todaySales > 0) && (
-              <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full blur-2xl"></div>
+              <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950 border border-slate-800/80 rounded-3xl p-7 shadow-2xl relative overflow-hidden backdrop-blur-xl">
+                <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-bl-full blur-3xl pointer-events-none"></div>
                 
-                <h3 className="text-sm font-bold text-slate-300 mb-5 flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-200 mb-6 flex items-center gap-2.5">
                   <Activity className="w-4 h-4 text-amber-400" />
                   실시간 지점별 매출 기여도
                 </h3>
@@ -516,22 +519,22 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
                     return (
                       <>
-                        <div className="flex justify-between items-end mb-2">
+                        <div className="flex justify-between items-end mb-2.5">
                           <div className="flex flex-col">
-                            <span className="text-xs text-amber-400 font-bold mb-1">🥇 1위 {firstPlace.name}</span>
-                            <span className="text-xl font-black text-white">{firstPlace.sales.toLocaleString()}원 <span className="text-sm text-slate-400 font-medium">({firstPlace.percent}%)</span></span>
+                            <span className="text-xs text-amber-400 font-extrabold mb-1">🥇 1위 {firstPlace.name}</span>
+                            <span className="text-2xl font-black text-white">{firstPlace.sales.toLocaleString()}원 <span className="text-sm text-slate-400 font-bold">({firstPlace.percent}%)</span></span>
                           </div>
                           <div className="flex flex-col text-right">
-                            <span className="text-xs text-slate-400 font-bold mb-1">🥈 2위 {secondPlace.name}</span>
-                            <span className="text-lg font-bold text-slate-300">{secondPlace.sales.toLocaleString()}원 <span className="text-xs text-slate-500">({secondPlace.percent}%)</span></span>
+                            <span className="text-xs text-slate-400 font-extrabold mb-1">🥈 2위 {secondPlace.name}</span>
+                            <span className="text-xl font-bold text-slate-300">{secondPlace.sales.toLocaleString()}원 <span className="text-xs text-slate-500">({secondPlace.percent}%)</span></span>
                           </div>
                         </div>
                         
-                        <div className="h-3 w-full bg-slate-800 rounded-full overflow-hidden flex shadow-inner">
-                          <div style={{ width: `${firstPlace.percent}%` }} className="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-1000 relative">
-                             <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
+                        <div className="h-4 w-full bg-slate-950/80 rounded-2xl overflow-hidden flex p-1 border border-slate-800/80 shadow-inner">
+                          <div style={{ width: `${firstPlace.percent}%` }} className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-xl transition-all duration-1000 relative shadow-md">
+                             <div className="absolute inset-0 bg-white/20 animate-pulse rounded-xl"></div>
                           </div>
-                          <div style={{ width: `${secondPlace.percent}%` }} className="h-full bg-slate-600 transition-all duration-1000"></div>
+                          <div style={{ width: `${secondPlace.percent}%` }} className="h-full bg-slate-700/80 rounded-xl transition-all duration-1000 ml-1"></div>
                         </div>
                       </>
                     );
@@ -540,74 +543,75 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               </div>
             )}
 
-            {/* 🔥 시간대별 매출 추이 그래프 */}
-            <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl">
+            {/* 🔥 시간대별 매출 추이 그래프 (텍스트 21시로 수정 완료 및 디자인 강화) */}
+            <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950 border border-slate-800/80 rounded-3xl p-7 shadow-2xl backdrop-blur-xl">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-200 flex items-center gap-2.5">
                     <TrendingUp className="w-4 h-4 text-amber-400" />
                     시간대별 매출 추이
                   </h3>
                   {selectedStore === 'all' && (
-                    <div className="flex items-center gap-2.5 text-[10px] font-bold bg-slate-950 px-2 py-1.5 rounded-lg border border-slate-800">
-                      <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"></span>역삼</span>
-                      <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>GFC</span>
+                    <div className="flex items-center gap-3 text-[11px] font-extrabold bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 shadow-inner">
+                      <span className="flex items-center gap-1.5 text-slate-200"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]"></span>역삼</span>
+                      <span className="flex items-center gap-1.5 text-slate-200"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"></span>GFC</span>
                     </div>
                   )}
                 </div>
-                <span className="text-[11px] text-slate-500 font-medium bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-                  11:00 ~ 22:00
+                {/* 💡 22시로 잘못 표기되어 있던 부분을 21시로 올바르게 수정 완료 */}
+                <span className="text-xs text-slate-400 font-bold bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
+                  11:00 ~ 21:00
                 </span>
               </div>
 
-              <div className="flex items-end justify-between h-48 gap-1 sm:gap-2.5 mt-4">
+              <div className="flex items-end justify-between h-52 gap-2 sm:gap-3 mt-6 pt-4 border-t border-slate-800/60">
                 {timeChartData.chartArray.map((item, idx) => {
                   const isZero = item.total === 0;
                   
                   return (
                     <div key={idx} className="flex flex-col items-center justify-end h-full w-full group relative">
                       {!isZero && (
-                        <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] px-3 py-2 rounded-xl pointer-events-none whitespace-nowrap z-10 shadow-xl border border-slate-700 flex flex-col gap-1.5">
-                          <span className="font-black text-amber-400 border-b border-slate-700 pb-1.5 mb-0.5">{item.total.toLocaleString()}원</span>
+                        <div className="absolute bottom-full mb-3 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 text-white text-xs px-3.5 py-2.5 rounded-2xl pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-slate-700 flex flex-col gap-2 backdrop-blur-xl">
+                          <span className="font-black text-amber-400 border-b border-slate-800 pb-1.5">{item.total.toLocaleString()}원</span>
                           {selectedStore === 'all' && (
-                            <div className="flex flex-col gap-1 text-[10px] font-medium">
-                              {item.solsot_yeoksam > 0 && <span className="text-slate-300 flex justify-between gap-3">역삼점 <span>{item.solsot_yeoksam.toLocaleString()}</span></span>}
-                              {item.solsot_gfc > 0 && <span className="text-slate-300 flex justify-between gap-3">GFC점 <span>{item.solsot_gfc.toLocaleString()}</span></span>}
-                              {item.goteat_seolleung > 0 && <span className="text-slate-300 flex justify-between gap-3">선릉점 <span>{item.goteat_seolleung.toLocaleString()}</span></span>}
+                            <div className="flex flex-col gap-1 text-[11px] font-bold">
+                              {item.solsot_yeoksam > 0 && <span className="text-slate-300 flex justify-between gap-4">역삼점 <span className="text-white">{item.solsot_yeoksam.toLocaleString()}</span></span>}
+                              {item.solsot_gfc > 0 && <span className="text-slate-300 flex justify-between gap-4">GFC점 <span className="text-white">{item.solsot_gfc.toLocaleString()}</span></span>}
+                              {item.goteat_seolleung > 0 && <span className="text-slate-300 flex justify-between gap-4">선릉점 <span className="text-white">{item.goteat_seolleung.toLocaleString()}</span></span>}
                             </div>
                           )}
                         </div>
                       )}
                       
-                      <div className="w-full relative flex flex-col-reverse items-center justify-start h-full gap-[1px]">
+                      <div className="w-full relative flex flex-col-reverse items-center justify-start h-full gap-1">
                         {selectedStore === 'all' ? (
                           <>
                             {item.solsot_yeoksam > 0 && (
                               <div style={{ height: `${(item.solsot_yeoksam / timeChartData.maxSales) * 100}%` }} 
-                                   className="w-full max-w-[2rem] bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-400 hover:to-amber-300 rounded-sm transition-all duration-500 ease-out"></div>
+                                   className="w-full max-w-[2.2rem] bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-400 hover:to-amber-300 rounded-lg transition-all duration-500 ease-out shadow-lg shadow-amber-500/10"></div>
                             )}
                             {item.solsot_gfc > 0 && (
                               <div style={{ height: `${(item.solsot_gfc / timeChartData.maxSales) * 100}%` }} 
-                                   className="w-full max-w-[2rem] bg-gradient-to-t from-emerald-600 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 rounded-sm transition-all duration-500 ease-out"></div>
+                                   className="w-full max-w-[2.2rem] bg-gradient-to-t from-emerald-600 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 rounded-lg transition-all duration-500 ease-out shadow-lg shadow-emerald-500/10"></div>
                             )}
                             {item.goteat_seolleung > 0 && (
                               <div style={{ height: `${(item.goteat_seolleung / timeChartData.maxSales) * 100}%` }} 
-                                   className="w-full max-w-[2rem] bg-gradient-to-t from-blue-600 to-blue-400 hover:from-blue-400 hover:to-blue-300 rounded-sm transition-all duration-500 ease-out"></div>
+                                   className="w-full max-w-[2.2rem] bg-gradient-to-t from-blue-600 to-blue-400 hover:from-blue-400 hover:to-blue-300 rounded-lg transition-all duration-500 ease-out shadow-lg shadow-blue-500/10"></div>
                             )}
                           </>
                         ) : (
                           !isZero && (
                             <div style={{ height: `${(item.total / timeChartData.maxSales) * 100}%` }} 
-                                 className={`w-full max-w-[2rem] rounded-t-sm transition-all duration-500 ease-out bg-gradient-to-t ${
-                                   selectedStore === 'solsot_yeoksam' ? 'from-amber-600 to-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.2)]' :
-                                   selectedStore === 'solsot_gfc' ? 'from-emerald-600 to-emerald-400 shadow-[0_0_15px_rgba(52,211,153,0.2)]' :
-                                   'from-blue-600 to-blue-400 shadow-[0_0_15px_rgba(96,165,250,0.2)]'
+                                 className={`w-full max-w-[2.2rem] rounded-t-xl transition-all duration-500 ease-out bg-gradient-to-t ${
+                                   selectedStore === 'solsot_yeoksam' ? 'from-amber-600 to-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.3)]' :
+                                   selectedStore === 'solsot_gfc' ? 'from-emerald-600 to-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.3)]' :
+                                   'from-blue-600 to-blue-400 shadow-[0_0_20px_rgba(96,165,250,0.3)]'
                                  }`}></div>
                           )
                         )}
                       </div>
                       
-                      <span className="text-[10px] text-slate-400 mt-2 font-medium">
+                      <span className="text-[11px] text-slate-400 mt-3 font-bold tracking-tight">
                         {item.hour}
                       </span>
                     </div>
@@ -620,116 +624,117 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
         {activeTab === 'cctv' && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-              <div className="bg-slate-800/90 px-5 py-3.5 flex justify-between items-center border-b border-slate-700/80">
-                <span className="text-xs font-bold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+            <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
+              <div className="bg-slate-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-700/60">
+                <span className="text-xs font-bold text-white flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
                   솔솥 GFC점 - 홀 메인
                 </span>
-                <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md font-mono">RTSP 01</span>
+                <span className="text-[10px] bg-slate-900 text-slate-300 px-2.5 py-1 rounded-lg font-mono font-bold">RTSP 01</span>
               </div>
-              <div className="h-60 bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative">
-                <Camera className="w-10 h-10 mb-2 opacity-30 text-amber-500" />
-                <span className="text-xs font-medium">GFC점 IP/포트 연동 대기 중</span>
+              <div className="h-64 bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative">
+                <Camera className="w-12 h-12 mb-3 opacity-30 text-amber-500" />
+                <span className="text-xs font-semibold text-slate-400">GFC점 IP/포트 연동 대기 중</span>
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl border-emerald-500/30">
-              <div className="bg-slate-800/90 px-5 py-3.5 flex justify-between items-center border-b border-slate-700/80">
-                <span className="text-xs font-bold text-white flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-emerald-500/30 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
+              <div className="bg-slate-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-700/60">
+                <span className="text-xs font-bold text-white flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
                   솔솥 역삼점 - 실시간 CCTV
                 </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-md font-mono">WEB PORT</span>
+                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-mono font-bold">WEB PORT</span>
               </div>
               
-              <div className="h-60 bg-slate-950 p-5 flex flex-col items-center justify-center relative">
-                <div className="text-center space-y-3">
-                  <div className="w-12 h-12 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/20 shadow-inner">
-                    <Video className="w-6 h-6 text-emerald-400" />
+              <div className="h-64 bg-slate-950 p-6 flex flex-col items-center justify-center relative">
+                <div className="text-center space-y-4">
+                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/25 shadow-inner">
+                    <Video className="w-7 h-7 text-emerald-400" />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-200">34ea7f.dvrinside.com</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">계정: admin (비밀번호 없음)</p>
+                    <p className="text-[11px] text-slate-400 mt-1 font-medium">계정: admin (비밀번호 없음)</p>
                   </div>
                   <a
                     href="http://34ea7f.dvrinside.com"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-lg shadow-emerald-500/20 active:scale-95"
+                    className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-5 py-3 rounded-2xl transition-all shadow-lg shadow-emerald-500/25 active:scale-95"
                   >
                     <span>실시간 CCTV 뷰어 열기</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
+                    <ExternalLink className="w-4 h-4" />
                   </a>
                 </div>
               </div>
             </div>
 
-            <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-              <div className="bg-slate-800/90 px-5 py-3.5 flex justify-between items-center border-b border-slate-700/80">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-2">
-                  <Clock className="w-3.5 h-3.5" />
+            <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
+              <div className="bg-slate-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-700/60">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-2.5">
+                  <Clock className="w-4 h-4" />
                   갓잇 선릉점 (12월 오픈예정)
                 </span>
-                <span className="text-[10px] bg-slate-700 text-slate-300 px-2 py-0.5 rounded-md">준비중</span>
+                <span className="text-[10px] bg-slate-900 text-slate-300 px-2.5 py-1 rounded-lg font-bold">준비중</span>
               </div>
-              <div className="h-60 bg-slate-950/50 flex flex-col items-center justify-center text-slate-500 relative">
-                <AlertTriangle className="w-8 h-8 mb-2 text-amber-500/60" />
-                <span className="text-xs text-slate-400 font-medium">12월 중순 장비 설치 예정</span>
+              <div className="h-64 bg-slate-950/60 flex flex-col items-center justify-center text-slate-500 relative">
+                <AlertTriangle className="w-9 h-9 mb-3 text-amber-500/70" />
+                <span className="text-xs text-slate-400 font-bold">12월 중순 장비 설치 예정</span>
               </div>
             </div>
           </div>
         )}
       </main>
 
+      {/* 상세 현황 모달 */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md transition-opacity">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity">
           <div className="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="flex justify-between items-center p-6 border-b border-slate-800 bg-slate-800/40">
+            <div className="flex justify-between items-center p-6 border-b border-slate-800 bg-slate-800/50">
               <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2.5">
                 <BarChart3 className="w-5 h-5 text-amber-400" />
                 {currentDisplay?.name} {currentMonthName} 매출 리포트
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition">
+              <button onClick={() => setIsModalOpen(false)} className="w-9 h-9 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-6 space-y-6">
               <div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
+                <h3 className="text-xs sm:text-sm font-bold text-slate-300 mb-3.5 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-amber-400" /> {currentMonthName} 경영 지표 요약
                 </h3>
                 <div className="grid grid-cols-2 gap-3.5">
-                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800/80 col-span-2 shadow-inner">
+                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 col-span-2 shadow-inner">
                     <p className="text-xs text-slate-400 mb-1 font-medium">{currentMonthName} 총 누적 매출</p>
                     <p className="text-2xl sm:text-3xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
                   </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 shadow-inner">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
                     <p className="text-xs text-slate-400 mb-1 font-medium">총 결제 건수</p>
                     <p className="text-lg sm:text-xl font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
                   </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800/80 shadow-inner">
+                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
                     <p className="text-xs text-slate-400 mb-1 font-medium">평균 객단가</p>
                     <p className="text-lg sm:text-xl font-bold text-emerald-400">{(accumulatedAvgPrice || 0).toLocaleString()}원</p>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-800/80">
-                <h4 className="text-xs font-bold text-slate-400 mb-3">오늘 결제 수단별 상세 내역</h4>
+              <div className="pt-2 border-t border-slate-800">
+                <h4 className="text-xs font-bold text-slate-400 mb-3.5">오늘 결제 수단별 상세 내역</h4>
                 <div className="grid grid-cols-3 gap-2.5 text-center">
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
                     <p className="text-[11px] text-slate-400 font-medium">카드 결제</p>
-                    <p className="text-xs font-bold text-blue-400 mt-1">{(currentDisplay?.details?.cardAmt || 0).toLocaleString()}원</p>
+                    <p className="text-xs font-bold text-blue-400 mt-1.5">{(currentDisplay?.details?.cardAmt || 0).toLocaleString()}원</p>
                   </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
                     <p className="text-[11px] text-slate-400 font-medium">현금 결제</p>
-                    <p className="text-xs font-bold text-emerald-400 mt-1">{(currentDisplay?.details?.cashAmt || 0).toLocaleString()}원</p>
+                    <p className="text-xs font-bold text-emerald-400 mt-1.5">{(currentDisplay?.details?.cashAmt || 0).toLocaleString()}원</p>
                   </div>
-                  <div className="bg-slate-950 p-3 rounded-xl border border-slate-800/80">
+                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
                     <p className="text-[11px] text-slate-400 font-medium">취소/환불</p>
-                    <p className="text-xs font-bold text-rose-400 mt-1">{(currentDisplay?.details?.cancelAmt || 0).toLocaleString()}원</p>
+                    <p className="text-xs font-bold text-rose-400 mt-1.5">{(currentDisplay?.details?.cancelAmt || 0).toLocaleString()}원</p>
                   </div>
                 </div>
               </div>
