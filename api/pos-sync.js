@@ -9,31 +9,54 @@ export default async function handler(req, res) {
 
   async function fetchStoreDataWithCookie(storeName, cookieValue) {
     try {
-      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 };
+      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 };
 
       const now = new Date();
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
-        method: "POST",
-        headers: {
-          "Cookie": `JSESSIONID=${cookieValue}`,
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Referer": "https://asp.unionpos.co.kr/",
-          "Accept": "application/json, text/javascript, */*; q=0.01",
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-        },
-        body: `sch_date=${todayStr}`
-      });
+      // 🔥 전주 동요일 날짜 계산 (7일 전)
+      const prevWeekDate = new Date(kst);
+      prevWeekDate.setDate(prevWeekDate.getDate() - 7);
+      const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
+
+      // 오늘 매출과 전주 동요일 매출을 동시에 요청
+      const [salesRes, prevRes] = await Promise.all([
+        fetch(`${PROXY_URL}/v2/onday`, {
+          method: "POST",
+          headers: {
+            "Cookie": `JSESSIONID=${cookieValue}`,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://asp.unionpos.co.kr/",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          },
+          body: `sch_date=${todayStr}`
+        }),
+        fetch(`${PROXY_URL}/v2/onday`, {
+          method: "POST",
+          headers: {
+            "Cookie": `JSESSIONID=${cookieValue}`,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "Referer": "https://asp.unionpos.co.kr/",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          },
+          body: `sch_date=${prevWeekStr}`
+        })
+      ]);
 
       const textData = await salesRes.text();
+      const prevTextData = await prevRes.text();
+
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 };
+        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 };
       }
 
       let data = {};
-      try { data = JSON.parse(textData); } catch (e) { return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 }; }
+      let prevData = {};
+      try { data = JSON.parse(textData); } catch (e) { data = {}; }
+      try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
       // 🔥 1. 오늘 매출 (ONEDAY)
       const oneday = data.ONEDAY || {};
@@ -45,7 +68,16 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 🔥 2. 누적 매출 (MONTH)
+      // 🔥 2. 전주 동요일 매출
+      const prevOneday = prevData.ONEDAY || {};
+      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
+      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
+      const prevCount = parseInt(prevOneday.SellCnt || 0, 10);
+      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) {
+        prevWeekSales = Math.round(prevUnitAmt * prevCount);
+      }
+
+      // 🔥 3. 월간 매출 (MONTH)
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -59,6 +91,7 @@ export default async function handler(req, res) {
         todaySales: todaySales,
         totalCount: totalCount,
         avgPrice: avgPrice,
+        prevWeekSales: prevWeekSales, // 전주 동요일 매출 추가
         monthSales: monthSales,
         monthCount: monthCount,
         details: {
@@ -69,15 +102,14 @@ export default async function handler(req, res) {
       };
 
     } catch (err) {
-      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 };
+      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 };
     }
   }
 
   const yeoksamCookie = process.env.YEOKSAM_COOKIE;
-  const gfcCookie = process.env.GFC_COOKIE; // 🔥 GFC점 쿠키 불러오기 추가
+  const gfcCookie = process.env.GFC_COOKIE;
 
   try {
-    // 🔥 역삼점과 GFC점을 동시에 조회
     const [yeoksamData, gfcData] = await Promise.all([
       fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
       fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
@@ -89,7 +121,7 @@ export default async function handler(req, res) {
       stores: {
         solsot_gfc: { name: "솔솥 GFC점", ...gfcData },
         solsot_yeoksam: { name: "솔솥 역삼점", ...yeoksamData },
-        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 }
+        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 }
       }
     });
   } catch (error) {
