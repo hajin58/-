@@ -18,13 +18,16 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
+      // 🔥 캐시 방지 헤더 추가하여 실시간 최신 데이터 강제 요청
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
           "Cookie": `JSESSIONID=${cookieValue}`,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           "Referer": "https://asp.unionpos.co.kr/",
-          "Accept": "application/json, text/javascript, */*; q=0.01"
+          "Accept": "application/json, text/javascript, */*; q=0.01",
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache"
         }
       });
 
@@ -40,11 +43,9 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 [핵심 수정] 건수와 객단가(UnitAmt)를 정확히 가져와서 총 매출 계산
       const unitAmt = parseFloat(data.MONTH?.UnitAmt || data.unit_amt || 0);
       const totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 42, 10);
       
-      // UnitAmt가 평균 단가이므로, 총 매출 = 단가 * 건수 (또는 유니온이 주는 총액 필드 우선)
       let todaySales = parseInt(data.tot_amt || data.today_sales || 0, 10);
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
         todaySales = Math.round(unitAmt * totalCount);
