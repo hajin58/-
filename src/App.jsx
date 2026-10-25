@@ -236,8 +236,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const growth = getGrowthRate(currentDisplay?.todaySales, currentDisplay?.prevWeekSales);
   const currentMonthName = `${new Date().getMonth() + 1}월`;
 
-  
-  // 🔥 유연하게 시간대별 데이터를 파싱하는 로직
+  // 🔥 시간대별 + 지점별 합산 색상 그래프 로직 (정리 완료)
   const timeChartData = useMemo(() => {
     const defaultHours = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
     let hourData = {};
@@ -257,24 +256,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         }
       });
     };
-
-    if (selectedStore === 'all') {
-      processTimeData('solsot_yeoksam', posData.solsot_yeoksam);
-      processTimeData('solsot_gfc', posData.solsot_gfc);
-      processTimeData('goteat_seolleung', posData.goteat_seolleung);
-    } else {
-      processTimeData(selectedStore, posData[selectedStore]);
-    }
-
-    const chartArray = defaultHours.map(hour => ({
-      hour: `${hour}시`,
-      ...hourData[hour]
-    }));
-
-    const maxSales = Math.max(...chartArray.map(d => d.total), 1);
-
-    return { chartArray, maxSales };
-  }, [posData, selectedStore]);
 
     if (selectedStore === 'all') {
       processTimeData('solsot_yeoksam', posData.solsot_yeoksam);
@@ -559,7 +540,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               </div>
             )}
 
-            {/* 🔥 시간대별 매출 추이 그래프 (조건 제거하여 무조건 렌더링) */}
+            {/* 🔥 시간대별 매출 추이 그래프 */}
             <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <div className="flex items-center gap-3">
@@ -567,13 +548,10 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                     <TrendingUp className="w-4 h-4 text-amber-400" />
                     시간대별 매출 추이
                   </h3>
-                  {/* 전체 탭일 때만 색상 범례 표시 */}
                   {selectedStore === 'all' && (
                     <div className="flex items-center gap-2.5 text-[10px] font-bold bg-slate-950 px-2 py-1.5 rounded-lg border border-slate-800">
                       <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]"></span>역삼</span>
                       <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]"></span>GFC</span>
-                      {/* 갓잇은 아직 데이터가 없으므로 주석처리. 필요시 주석 해제하세요 */}
-                      {/* <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.6)]"></span>갓잇</span> */}
                     </div>
                   )}
                 </div>
@@ -588,7 +566,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                   
                   return (
                     <div key={idx} className="flex flex-col items-center justify-end h-full w-full group relative">
-                      {/* 툴팁: 0원이 아닐 때만 마우스 올리면 표시 */}
                       {!isZero && (
                         <div className="absolute bottom-full mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[11px] px-3 py-2 rounded-xl pointer-events-none whitespace-nowrap z-10 shadow-xl border border-slate-700 flex flex-col gap-1.5">
                           <span className="font-black text-amber-400 border-b border-slate-700 pb-1.5 mb-0.5">{item.total.toLocaleString()}원</span>
@@ -602,7 +579,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                         </div>
                       )}
                       
-                      {/* 0원이면 아무것도 렌더링하지 않음. 데이터가 있을 때만 flex-col-reverse 로 층층이 쌓음 */}
                       <div className="w-full relative flex flex-col-reverse items-center justify-start h-full gap-[1px]">
                         {selectedStore === 'all' ? (
                           <>
@@ -620,7 +596,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                             )}
                           </>
                         ) : (
-                          // 단일 매장 선택 시
                           !isZero && (
                             <div style={{ height: `${(item.total / timeChartData.maxSales) * 100}%` }} 
                                  className={`w-full max-w-[2rem] rounded-t-sm transition-all duration-500 ease-out bg-gradient-to-t ${
