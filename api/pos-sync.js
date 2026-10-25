@@ -18,7 +18,6 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 방화벽 회피를 위해 튀는 타임스탬프 제거하고 깔끔하게 순수 엔드포인트 호출
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
@@ -30,8 +29,11 @@ export default async function handler(req, res) {
       });
 
       const textData = await salesRes.text();
+      
+      // 🔥 유니온이 주는 전체 데이터를 로그에 무조건 다 찍어서 확인
+      console.log(`📦 [${storeName}] 유니온 원본 응답 전체:`, textData);
+
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        console.error(`🚨 [${storeName}] 유니온 보안 방화벽에 의해 쿠키가 차단되었습니다.`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
@@ -43,7 +45,7 @@ export default async function handler(req, res) {
       }
 
       const unitAmt = parseFloat(data.MONTH?.UnitAmt || data.unit_amt || 0);
-      const totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 42, 10);
+      const totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 0, 10);
       
       let todaySales = parseInt(data.tot_amt || data.today_sales || 0, 10);
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
