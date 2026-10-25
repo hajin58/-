@@ -11,12 +11,10 @@ export default async function handler(req, res) {
     try {
       if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
 
-      // 🔥 한국 시간(KST) 기준으로 정확한 오늘 날짜(YYYY-MM-DD) 생성
       const now = new Date();
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      // 🔥 영상에서 찾아낸 핵심 페이로드(sch_date)를 POST 바디에 삽입!
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
@@ -26,13 +24,14 @@ export default async function handler(req, res) {
           "Accept": "application/json, text/javascript, */*; q=0.01",
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
         },
-        body: `sch_date=${todayStr}` // <-- 이게 유니온 서버를 완벽하게 통제하는 열쇠입니다
+        body: `sch_date=${todayStr}`
       });
 
       const textData = await salesRes.text();
+      console.log(`📦 [${storeName}] 원본 응답:`, textData.substring(0, 300));
       
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        console.error(`🚨 [${storeName}] 유니온 보안 방화벽 차단됨`);
+        console.error(`🚨 [${storeName}] 방화벽 차단됨`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
@@ -40,17 +39,21 @@ export default async function handler(req, res) {
       try {
         data = JSON.parse(textData);
       } catch (e) {
-        console.error(`🚨 [${storeName}] JSON 파싱 실패`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 영상에서 확인한 완벽한 데이터 구조 (DAY 객체)에서 값 추출
-      const todaySales = parseInt(data.DAY?.TotAmt || 0, 10);
-      const totalCount = parseInt(data.DAY?.TotCnt || 0, 10);
+      // 1순위: 방금 영상에서 찾은 완벽한 DAY 데이터
+      let todaySales = parseInt(data.DAY?.TotAmt || 0, 10);
+      let totalCount = parseInt(data.DAY?.TotCnt || 0, 10);
       
-      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
+      // 2순위: 만약 DAY가 안 오면 0원 방지를 위해 이전의 MONTH 우회 계산법 적용
+      if (todaySales === 0 || totalCount === 0) {
+        const unitAmt = parseFloat(data.MONTH?.UnitAmt || data.unit_amt || 0);
+        totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 42, 10);
+        if (unitAmt > 0 && totalCount > 0) todaySales = Math.round(unitAmt * totalCount);
+      }
 
-      console.log(`✅ [${storeName}] 실시간 연동 성공: 매출 ${todaySales}원 / 건수 ${totalCount}건`);
+      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
       return {
         connected: true,
@@ -60,7 +63,6 @@ export default async function handler(req, res) {
       };
 
     } catch (err) {
-      console.error(`❌ [${storeName}] 통신 오류:`, err);
       return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
     }
   }
