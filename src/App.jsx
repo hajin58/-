@@ -28,7 +28,6 @@ export default function App() {
   // 🔥 앱 실행 시 외부 API로 접속자 IP 실시간 확인 후 자동 인증
   useEffect(() => {
     const checkUserIp = async () => {
-      // 이미 세션에 인증 정보가 있으면 패스
       if (sessionStorage.getItem('dearspoon_auth') === 'true') {
         setIsAuthenticated(true);
         setIsCheckingIp(false);
@@ -41,7 +40,6 @@ export default function App() {
         const clientIp = data.ip;
 
         if (ALLOWED_IPS[clientIp]) {
-          // 화이트리스트에 있는 IP인 경우 비밀번호 생략 및 환영 메시지 세팅
           setWelcomeMessage(ALLOWED_IPS[clientIp]);
           setIsAuthenticated(true);
           sessionStorage.setItem('dearspoon_auth', 'true');
@@ -72,7 +70,7 @@ export default function App() {
     sessionStorage.removeItem('dearspoon_auth');
     setIsAuthenticated(false);
     setWelcomeMessage('');
-    window.location.reload(); // 로그아웃 시 IP 재체크를 위해 새로고침
+    window.location.reload();
   };
 
   if (isCheckingIp) {
@@ -224,15 +222,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
-                {/* 🔥 IP 자동 인증 성공 시 환영 메시지 뱃지 출력 */}
-                {welcomeMessage && (
-                  <span className="hidden md:inline-flex items-center gap-1 text-[11px] bg-amber-500/10 text-amber-400 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-medium">
-                    <Sparkles className="w-3 h-3" /> {welcomeMessage}
-                  </span>
-                )}
-              </div>
+              <h1 className="text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
               <p className="text-xs text-slate-400">솔솥 · 갓잇 실시간 통합 관제 시스템</p>
             </div>
           </div>
@@ -257,10 +247,19 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
       {/* 메인 컨텐츠 영역 */}
       <main className="max-w-7xl mx-auto px-4 mt-6 relative">
-        {/* 모바일 화면용 환영 메시지 */}
+        
+        {/* 🔥 IP 자동 인증 성공 시 최상단에 큼직하게 뜨는 환영 배너 */}
         {welcomeMessage && (
-          <div className="md:hidden mb-4 flex items-center gap-1.5 text-xs bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/20 font-medium">
-            <Sparkles className="w-3.5 h-3.5 shrink-0" /> <span>{welcomeMessage}</span>
+          <div className="mb-6 bg-gradient-to-r from-amber-500/20 via-amber-500/10 to-transparent border border-amber-500/30 p-4 rounded-2xl flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center border border-amber-500/40">
+                <Sparkles className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h2 className="text-base font-bold text-amber-400 tracking-tight">{welcomeMessage}</h2>
+                <p className="text-xs text-slate-300 mt-0.5">안전하게 보안 인증되었습니다. 오늘도 대박 나세요!</p>
+              </div>
+            </div>
           </div>
         )}
 
