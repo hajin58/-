@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Building2, TrendingUp, Users, Camera, 
   CreditCard, RefreshCw, CheckCircle2, 
@@ -154,9 +154,9 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [posData, setPosData] = useState({
-    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
-    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
-    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } }
+    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} },
+    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} }
   });
 
   const fetchPosData = async () => {
@@ -235,6 +235,37 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
   const growth = getGrowthRate(currentDisplay?.todaySales, currentDisplay?.prevWeekSales);
   const currentMonthName = `${new Date().getMonth() + 1}월`;
+
+  const timeChartData = useMemo(() => {
+    const defaultHours = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
+    let combinedData = {};
+
+    const processTimeData = (storeData) => {
+      const timeObj = storeData?.TIME || {}; 
+      Object.keys(timeObj).forEach(key => {
+        const hour = key.substring(0, 2);
+        if (defaultHours.includes(hour)) {
+          combinedData[hour] = (combinedData[hour] || 0) + (timeObj[key] || 0);
+        }
+      });
+    };
+
+    if (selectedStore === 'all') {
+      processTimeData(posData.solsot_gfc);
+      processTimeData(posData.solsot_yeoksam);
+    } else {
+      processTimeData(posData[selectedStore]);
+    }
+
+    const chartArray = defaultHours.map(hour => ({
+      hour: `${hour}시`,
+      sales: combinedData[hour] || 0
+    }));
+
+    const maxSales = Math.max(...chartArray.map(d => d.sales), 1);
+
+    return { chartArray, maxSales };
+  }, [posData, selectedStore]);
 
   const stores = [
     { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected, cctvCount: 4 },
@@ -496,6 +527,50 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                       </>
                     );
                   })()}
+                </div>
+              </div>
+            )}
+
+            {(currentDisplay?.todaySales > 0) && (
+              <div className="bg-gradient-to-br from-slate-900 to-slate-900/90 border border-slate-800/90 rounded-3xl p-6 shadow-xl">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-amber-400" />
+                    시간대별 매출 추이
+                  </h3>
+                  <span className="text-[11px] text-slate-500 font-medium bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
+                    11:00 ~ 22:00
+                  </span>
+                </div>
+
+                <div className="flex items-end justify-between h-40 gap-1.5 sm:gap-3 mt-4">
+                  {timeChartData.chartArray.map((item, idx) => {
+                    const heightPercent = (item.sales / timeChartData.maxSales) * 100;
+                    const isZero = item.sales === 0;
+                    
+                    return (
+                      <div key={idx} className="flex flex-col items-center justify-end h-full w-full group relative">
+                        <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-800 text-white text-[10px] px-2 py-1 rounded-md pointer-events-none whitespace-nowrap z-10 shadow-lg border border-slate-700">
+                          {item.sales.toLocaleString()}원
+                        </div>
+                        
+                        <div className="w-full relative flex items-end justify-center h-full">
+                          <div 
+                            style={{ height: `${isZero ? 2 : heightPercent}%` }} 
+                            className={`w-full max-w-[2rem] rounded-t-sm transition-all duration-700 ease-out ${
+                              isZero 
+                                ? 'bg-slate-800' 
+                                : 'bg-gradient-to-t from-amber-600 to-amber-400 group-hover:from-amber-500 group-hover:to-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.2)]'
+                            }`}
+                          ></div>
+                        </div>
+                        
+                        <span className="text-[10px] text-slate-400 mt-2 font-medium">
+                          {item.hour}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
