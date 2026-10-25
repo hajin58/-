@@ -18,8 +18,9 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 캐시 방지 헤더 추가하여 실시간 최신 데이터 강제 요청
-      const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
+      // 🔥 매 요청마다 현재 시간을 쿼리스트링에 붙여서 유니온 서버 캐시 및 프록시 캐시 원천 차단
+      const timestamp = Date.now();
+      const salesRes = await fetch(`${PROXY_URL}/v2/onday?_t=${timestamp}`, {
         method: "POST",
         headers: {
           "Cookie": `JSESSIONID=${cookieValue}`,
@@ -27,7 +28,8 @@ export default async function handler(req, res) {
           "Referer": "https://asp.unionpos.co.kr/",
           "Accept": "application/json, text/javascript, */*; q=0.01",
           "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache"
+          "Pragma": "no-cache",
+          "Expires": "0"
         }
       });
 
