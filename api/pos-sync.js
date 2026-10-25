@@ -15,27 +15,35 @@ export default async function handler(req, res) {
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
   const UNION_LOGIN_URL = "https://asp.unionpos.co.kr/loginCheck"; 
 
-  // [핵심] 유니온 ASP 실시간 자동 로그인 & 데이터 조회 로직
+  // 유니온 ASP 실시간 자동 로그인 & 데이터 조회 로직
   async function fetchStoreData(storeName, id, pw) {
     try {
       console.log(`\n⏳ [${storeName}] 로그인 시도 중... (ID: ${id})`);
 
-      // (1) 직접 유니온 로그인해서 신선한 쿠키(JSESSIONID) 발급받기
+      // 봇(Bot) 차단 방지를 위해 'User-Agent(신분증)' 추가하여 로그인 시도
       const loginRes = await fetch(UNION_LOGIN_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        headers: { 
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' 
+        },
         body: new URLSearchParams({ 
           userId: id,    
           userPw: pw     
         }),
-        redirect: 'manual' // 🔥 강제 이동을 막고 로그인 인증 쿠키만 낚아채는 필수 옵션!
+        redirect: 'manual' 
       });
 
       // 발급받은 쿠키 빼오기
       const cookieHeader = loginRes.headers.get('set-cookie') || '';
-      console.log(`🍪 [${storeName}] 받아온 쿠키:`, cookieHeader ? "성공!" : "실패(쿠키 없음)");
+      console.log(`🍪 [${storeName}] 로그인 응답 코드: ${loginRes.status}, 쿠키:`, cookieHeader ? "성공!" : "실패(쿠키 없음)");
 
-      // (2) 프록시 서버를 통해 '새 쿠키'로 매출 데이터 조회
+      if (!cookieHeader) {
+         console.error(`🚨 [${storeName}] 로봇으로 의심받아 쿠키 발급이 거부되었습니다.`);
+         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
+      }
+
+      // 프록시 서버를 통해 '새 쿠키'로 매출 데이터 조회
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
@@ -51,10 +59,10 @@ export default async function handler(req, res) {
       try {
         data = JSON.parse(textData);
       } catch (e) {
-        console.error(`🚨 [${storeName}] JSON 파싱 실패! 응답이 이상합니다.`);
+        console.error(`🚨 [${storeName}] JSON 파싱 실패! 유니온 측 응답이 이상합니다.`);
       }
 
-      // (3) 매출액, 결제건수, 객단가 정제
+      // 매출액, 결제건수, 객단가 정제
       const todaySales = parseInt(data.tot_amt || data.today_sales || data.tot_sale_amt || data.sale_amt || 0, 10);
       const totalCount = parseInt(data.tot_cnt || data.today_cnt || data.sale_cnt || data.cnt || 0, 10);
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
@@ -81,7 +89,6 @@ export default async function handler(req, res) {
   const yeoksamPw = process.env.YEOKSAM_POS_PW;
 
   try {
-    // GFC점, 역삼점 데이터를 동시에 긁어와서 조립
     const [gfcData, yeoksamData] = await Promise.all([
       fetchStoreData("솔솥 GFC점", gfcId, gfcPw),
       fetchStoreData("솔솥 역삼점", yeoksamId, yeoksamPw)
