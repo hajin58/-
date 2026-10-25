@@ -15,18 +15,16 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      // 🔥 전주 동요일 날짜 계산 (7일 전)
       const prevWeekDate = new Date(kst);
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
 
-      // 오늘 매출과 전주 동요일 매출을 동시에 요청
       const [salesRes, prevRes] = await Promise.all([
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
           headers: {
             "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+            "User-Agent": "Mozilla/5.0",
             "Referer": "https://asp.unionpos.co.kr/",
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
@@ -37,9 +35,7 @@ export default async function handler(req, res) {
           method: "POST",
           headers: {
             "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-            "Referer": "https://asp.unionpos.co.kr/",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "User-Agent": "Mozilla/5.0",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
           body: `sch_date=${prevWeekStr}`
@@ -49,16 +45,19 @@ export default async function handler(req, res) {
       const textData = await salesRes.text();
       const prevTextData = await prevRes.text();
 
-      if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 };
-      }
-
       let data = {};
       let prevData = {};
       try { data = JSON.parse(textData); } catch (e) { data = {}; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
-      // 🔥 1. 오늘 매출 (ONEDAY)
+      // 🔥 Vercel Logs에서 확인하기 위한 디버깅 출력 추가
+      if (storeName === "솔솥 역삼점") {
+        console.log("=====================================");
+        console.log(`[${storeName}] 데이터 키 목록:`, Object.keys(data));
+        console.log(`[${storeName}] 원본 데이터 샘플:`, JSON.stringify(data).substring(0, 500));
+        console.log("=====================================");
+      }
+
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -68,7 +67,6 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 🔥 2. 전주 동요일 매출
       const prevOneday = prevData.ONEDAY || {};
       let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
       const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
@@ -77,7 +75,6 @@ export default async function handler(req, res) {
         prevWeekSales = Math.round(prevUnitAmt * prevCount);
       }
 
-      // 🔥 3. 월간 매출 (MONTH)
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -88,12 +85,7 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales: todaySales,
-        totalCount: totalCount,
-        avgPrice: avgPrice,
-        prevWeekSales: prevWeekSales, // 전주 동요일 매출 추가
-        monthSales: monthSales,
-        monthCount: monthCount,
+        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
