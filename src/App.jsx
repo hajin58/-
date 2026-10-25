@@ -1,22 +1,47 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Building2, TrendingUp, Users, ShieldAlert, Camera, 
+  Building2, TrendingUp, Users, Camera, 
   CreditCard, RefreshCw, CheckCircle2, 
   Clock, AlertTriangle, Lock, KeyRound, ExternalLink, Video,
-  X, ChevronRight, BarChart3
+  X, ChevronRight, BarChart3, Sparkles
 } from 'lucide-react';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [welcomeMessage, setWelcomeMessage] = useState('');
+  const [isCheckingIp, setIsCheckingIp] = useState(true);
 
   const MASTER_PASSWORD = "821125";
 
+  // 🔥 앱 실행 시 IP 자동 인증 체크
   useEffect(() => {
+    const checkUserIp = async () => {
+      try {
+        const res = await fetch('/api/check-ip');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.allowed) {
+            // 등록된 IP인 경우 비밀번호 생략 및 환영 메시지 세팅
+            setWelcomeMessage(data.message);
+            setIsAuthenticated(true);
+            sessionStorage.setItem('dearspoon_auth', 'true');
+          }
+        }
+      } catch (err) {
+        console.error("IP 체크 실패:", err);
+      } finally {
+        setIsCheckingIp(false);
+      }
+    };
+
     const authStatus = sessionStorage.getItem('dearspoon_auth');
     if (authStatus === 'true') {
       setIsAuthenticated(true);
+      setIsCheckingIp(false);
+    } else {
+      checkUserIp();
     }
   }, []);
 
@@ -35,7 +60,16 @@ export default function App() {
   const handleLogout = () => {
     sessionStorage.removeItem('dearspoon_auth');
     setIsAuthenticated(false);
+    setWelcomeMessage('');
   };
+
+  if (isCheckingIp) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-500"></div>
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
@@ -70,7 +104,7 @@ export default function App() {
 
             {errorMessage && (
               <div className="flex items-center gap-2 text-rose-400 text-xs bg-rose-500/10 p-3 rounded-lg border border-rose-500/20">
-                <ShieldAlert className="w-4 h-4 shrink-0" />
+                <span className="shrink-0">⚠️</span>
                 <span>{errorMessage}</span>
               </div>
             )}
@@ -93,10 +127,10 @@ export default function App() {
     );
   }
 
-  return <MainDashboardContent onLogout={handleLogout} />;
+  return <MainDashboardContent onLogout={handleLogout} welcomeMessage={welcomeMessage} />;
 }
 
-function MainDashboardContent({ onLogout }) {
+function MainDashboardContent({ onLogout, welcomeMessage }) {
   const [selectedStore, setSelectedStore] = useState('all');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(false);
@@ -158,8 +192,6 @@ function MainDashboardContent({ onLogout }) {
   };
 
   const currentDisplay = getCalculatedData();
-  
-  // 전체 누적 평균 객단가 계산
   const accumulatedAvgPrice = currentDisplay?.monthCount > 0 
     ? Math.round(currentDisplay.monthSales / currentDisplay.monthCount) 
     : 0;
@@ -180,7 +212,15 @@ function MainDashboardContent({ onLogout }) {
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg font-bold text-white tracking-wide">디어스푼 매장 현황</h1>
+                {/* 🔥 IP 인증 성공 시 환영 메시지 뱃지 출력 */}
+                {welcomeMessage && (
+                  <span className="hidden md:inline-flex items-center gap-1 text-[11px] bg-amber-500/10 text-amber-400 px-2.5 py-0.5 rounded-full border border-amber-500/20 font-medium">
+                    <Sparkles className="w-3 h-3" /> {welcomeMessage}
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-400">솔솥 · 갓잇 실시간 통합 관제 시스템</p>
             </div>
           </div>
@@ -205,6 +245,13 @@ function MainDashboardContent({ onLogout }) {
 
       {/* 메인 컨텐츠 영역 */}
       <main className="max-w-7xl mx-auto px-4 mt-6 relative">
+        {/* 모바일 화면용 환영 메시지 */}
+        {welcomeMessage && (
+          <div className="md:hidden mb-4 flex items-center gap-1.5 text-xs bg-amber-500/10 text-amber-400 px-3 py-2 rounded-xl border border-amber-500/20 font-medium">
+            <Sparkles className="w-3.5 h-3.5 shrink-0" /> <span>{welcomeMessage}</span>
+          </div>
+        )}
+
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedStore('all')}
@@ -373,12 +420,10 @@ function MainDashboardContent({ onLogout }) {
         )}
       </main>
 
-      {/* 🔥 외식업 최적화 누적 현황 모달 */}
+      {/* 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity">
           <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            
-            {/* 모달 헤더 */}
             <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/50">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-500" />
@@ -390,7 +435,6 @@ function MainDashboardContent({ onLogout }) {
             </div>
 
             <div className="p-6 space-y-6">
-              {/* 누적 현황 (오픈 후 지금까지) */}
               <div>
                 <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
                   <TrendingUp className="w-4 h-4 text-amber-500" /> 오픈 후 누적 현황
