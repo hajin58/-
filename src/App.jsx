@@ -287,7 +287,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               </div>
               <div>
                 <h2 className="text-sm sm:text-base font-bold text-amber-400 tracking-tight">{welcomeMessage}</h2>
-                <p className="text-xs text-slate-300 mt-0.5">안전하게 보안 인증되었습니다. 오늘도 성공적인 하루되세요!</p>
+                <p className="text-xs text-slate-300 mt-0.5">안전하게 보안 인증되었습니다. 오늘도 성공적인 하루되세요!!</p>
               </div>
             </div>
           </div>
@@ -467,8 +467,8 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                     
                     const isYeoksamFirst = yeoksamSales >= gfcSales;
 
-                    const firstPlace = isYeoksamFirst ? { name: '역삼점', sales: yeoksamSales, percent: yeoksamPercent, color: 'bg-amber-500' } : { name: 'GFC점', sales: gfcSales, percent: gfcPercent, color: 'bg-amber-500' };
-                    const secondPlace = isYeoksamFirst ? { name: 'GFC점', sales: gfcSales, percent: gfcPercent, color: 'bg-slate-600' } : { name: '역삼점', sales: yeoksamSales, percent: yeoksamPercent, color: 'bg-slate-600' };
+                    const firstPlace = isYeoksamFirst ? { name: '솔솥 역삼점', sales: yeoksamSales, percent: yeoksamPercent, color: 'bg-amber-500' } : { name: '솔솥 GFC점', sales: gfcSales, percent: gfcPercent, color: 'bg-amber-500' };
+                    const secondPlace = isYeoksamFirst ? { name: '솔솥 GFC점', sales: gfcSales, percent: gfcPercent, color: 'bg-slate-600' } : { name: '솔솥 역삼점', sales: yeoksamSales, percent: yeoksamPercent, color: 'bg-slate-600' };
 
                     return (
                       <>
