@@ -28,36 +28,45 @@ export default async function handler(req, res) {
       });
 
       const textData = await salesRes.text();
-      
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
       let data = {};
-      try {
-        data = JSON.parse(textData);
-      } catch (e) {
-        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
-      }
+      try { data = JSON.parse(textData); } catch (e) { return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 }; }
 
-      // 🔥 로그에서 완벽하게 증명된 "ONEDAY" 객체 타겟팅
+      // 🔥 1. 오늘 매출 (ONEDAY)
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
-      
-      // UnitAmt(객단가) * SellCnt(결제건수) = 2,338,900원 (정확히 일치)
       let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
         todaySales = Math.round(unitAmt * totalCount);
       }
-
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
+
+      // 🔥 2. 누적 매출 및 상세 정보 (MONTH 및 결제수단)
+      const month = data.MONTH || {};
+      const monthCount = parseInt(month.SellCnt || 0, 10);
+      const monthUnitAmt = parseFloat(month.UnitAmt || 0);
+      let monthSales = parseInt(month.TotAmt || month.ReceiveAmt || 0, 10);
+      if (monthSales === 0 && monthUnitAmt > 0 && monthCount > 0) {
+        monthSales = Math.round(monthUnitAmt * monthCount);
+      }
 
       return {
         connected: true,
         todaySales: todaySales,
         totalCount: totalCount,
         avgPrice: avgPrice,
+        // 새로 추가된 상세 데이터들
+        monthSales: monthSales,
+        monthCount: monthCount,
+        details: {
+          cardAmt: parseInt(oneday.CardAmt || 0, 10),
+          cashAmt: parseInt(oneday.CashAmt || 0, 10),
+          cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
+        }
       };
 
     } catch (err) {
