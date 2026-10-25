@@ -18,23 +18,20 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 매 요청마다 현재 시간을 쿼리스트링에 붙여서 유니온 서버 캐시 및 프록시 캐시 원천 차단
-      const timestamp = Date.now();
-      const salesRes = await fetch(`${PROXY_URL}/v2/onday?_t=${timestamp}`, {
+      // 🔥 방화벽 회피를 위해 튀는 타임스탬프 제거하고 깔끔하게 순수 엔드포인트 호출
+      const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
           "Cookie": `JSESSIONID=${cookieValue}`,
           "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
           "Referer": "https://asp.unionpos.co.kr/",
-          "Accept": "application/json, text/javascript, */*; q=0.01",
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
+          "Accept": "application/json, text/javascript, */*; q=0.01"
         }
       });
 
       const textData = await salesRes.text();
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
+        console.error(`🚨 [${storeName}] 유니온 보안 방화벽에 의해 쿠키가 차단되었습니다.`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
