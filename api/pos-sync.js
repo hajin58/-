@@ -50,9 +50,7 @@ export default async function handler(req, res) {
       try { data = JSON.parse(textData); } catch (e) { data = {}; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
-      // 디버깅용 로그 (Vercel에서 키 이름 확인용)
-      console.log(`[${storeName}] 받은 전체 데이터 키들:`, Object.keys(data));
-
+      // 당일 데이터 파싱
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -62,6 +60,7 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
+      // 전주 동요일 데이터 파싱
       const prevOneday = prevData.ONEDAY || {};
       let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
       const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
@@ -70,6 +69,7 @@ export default async function handler(req, res) {
         prevWeekSales = Math.round(prevUnitAmt * prevCount);
       }
 
+      // 월별 데이터 파싱 (정상 작동하던 구조 복구)
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -78,11 +78,11 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 🔥 가능한 모든 시간대별 데이터 키 이름 대응 (TIME, Time, time, TIMEDETAIL 등)
+      // 🔥 시간대별 데이터 안전 추출 로직
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
-        if (key.toLowerCase() === 'time' && typeof data[key] === 'object') {
+        if (key.toLowerCase() === 'time' && typeof data[key] === 'object' && data[key] !== null) {
           timeData = data[key];
           break;
         }
@@ -90,13 +90,18 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
+        todaySales, 
+        totalCount, 
+        avgPrice, 
+        prevWeekSales, 
+        monthSales, 
+        monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
           cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
         },
-        TIME: timeData // 추출된 시간대별 데이터 전달
+        TIME: timeData
       };
 
     } catch (err) {
