@@ -7,7 +7,6 @@ export default async function handler(req, res) {
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
-  // Vercel 환경 변수에 등록된 지점별 쿠키 가져오기
   const cookies = {
     solsot_yeoksam: process.env.YEOKSAM_COOKIE || "",
     solsot_gfc: process.env.GFC_COOKIE || "",
@@ -31,7 +30,6 @@ export default async function handler(req, res) {
 
     try {
       const now = new Date();
-      // KST 기준 날짜 계산 (UTC + 9시간)
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0];
       
@@ -43,7 +41,6 @@ export default async function handler(req, res) {
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
 
-      // 당일 데이터, 전주 동요일 데이터, 이번 달 누적 데이터를 병렬 호출
       const [salesRes, prevRes, monthRes] = await Promise.all([
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
@@ -86,39 +83,35 @@ export default async function handler(req, res) {
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
       try { monthData = JSON.parse(monthTextData); } catch (e) { monthData = {}; }
 
-      // 유니온소프트 POS 데이터 구조 파싱
+      // 1. 당일 데이터 파싱
       const oneday = data.ONEDAY || data.data || data;
-      const totalCount = parseInt(oneday.SellCnt || oneday.cnt || 0, 10);
-      let todaySales = parseInt(oneday.TotAmt || oneday.totAmt || oneday.saleAmt || 0, 10);
-      
-      // 만약 TotAmt가 없지만 NetAmt 등이 있다면 보완
-      if (!todaySales && oneday.NetAmt) {
-        todaySales = parseInt(oneday.NetAmt, 10);
-      }
+      const totalCount = parseInt(oneday.SellCnt || oneday.cnt || oneday.SALE_CNT || 0, 10);
+      let todaySales = parseInt(oneday.TotAmt || oneday.totAmt || oneday.saleAmt || oneday.TOT_AMT || 0, 10);
+      if (!todaySales && oneday.NetAmt) todaySales = parseInt(oneday.NetAmt, 10);
 
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 전주 동요일 매출
+      // 2. 전주 동요일 매출
       const prevOneday = prevData.ONEDAY || prevData.data || prevData;
-      const prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.totAmt || prevOneday.saleAmt || 0, 10);
+      const prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.totAmt || prevOneday.saleAmt || prevOneday.TOT_AMT || 0, 10);
 
-      // 이번 달 누적 매출 및 건수
-      const monthSummary = monthData.SUMMARY || monthData.ONEDAY || monthData.data || {};
-      const monthSales = parseInt(monthSummary.TotAmt || monthSummary.totAmt || monthSummary.saleAmt || 0, 10);
-      const monthCount = parseInt(monthSummary.SellCnt || monthSummary.cnt || 0, 10);
+      // 3. 이번 달 누적 매출 파싱 보완 (다양한 키 이름 대응)
+      const mObj = monthData.SUMMARY || monthData.ONEDAY || monthData.data || monthData;
+      const monthSales = parseInt(mObj.TotAmt || mObj.totAmt || mObj.saleAmt || mObj.TOT_AMT || mObj.SUM_AMT || 0, 10);
+      const monthCount = parseInt(mObj.SellCnt || mObj.cnt || mObj.SALE_CNT || mObj.SUM_CNT || 0, 10);
 
-      // 결제 수단별 상세 내역 (카드, 현금, 취소)
-      const cardAmt = parseInt(oneday.CardAmt || oneday.cardAmt || 0, 10);
-      const cashAmt = parseInt(oneday.CashAmt || oneday.cashAmt || 0, 10);
-      const cancelAmt = parseInt(oneday.CancelAmt || oneday.cancelAmt || 0, 10);
+      // 4. 결제 수단별 상세 내역
+      const cardAmt = parseInt(oneday.CardAmt || oneday.cardAmt || oneday.CARD_AMT || 0, 10);
+      const cashAmt = parseInt(oneday.CashAmt || oneday.cashAmt || oneday.CASH_AMT || 0, 10);
+      const cancelAmt = parseInt(oneday.CancelAmt || oneday.cancelAmt || oneday.CANCEL_AMT || 0, 10);
 
-      // 시간대별 데이터 추출 (TIME 또는 시간별 리스트 객체 탐색)
-      let timeObj = data.TIME || data.time || data.TIME_LIST || {};
+      // 5. 시간대별 데이터 파싱 보완 (다양한 구조 대응)
+      let timeObj = data.TIME || data.time || data.TIME_LIST || data.hourList || {};
       if (Array.isArray(data.TIME)) {
         timeObj = {};
         data.TIME.forEach(item => {
-          const hourKey = item.Hour || item.time || item.H;
-          const val = item.TotAmt || item.amt || item.Sales || 0;
+          const hourKey = item.Hour || item.time || item.H || item.HOUR;
+          const val = item.TotAmt || item.amt || item.Sales || item.TOT_AMT || 0;
           if (hourKey) timeObj[hourKey] = val;
         });
       }
@@ -131,11 +124,7 @@ export default async function handler(req, res) {
         monthSales,
         monthCount,
         prevWeekSales,
-        details: {
-          cardAmt,
-          cashAmt,
-          cancelAmt
-        },
+        details: { cardAmt, cashAmt, cancelAmt },
         TIME: timeObj
       };
     } catch (err) {
