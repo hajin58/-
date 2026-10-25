@@ -9,7 +9,7 @@ export default async function handler(req, res) {
 
   async function fetchStoreDataWithCookie(storeName, cookieValue) {
     try {
-      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
+      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 };
 
       const now = new Date();
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
@@ -29,11 +29,11 @@ export default async function handler(req, res) {
 
       const textData = await salesRes.text();
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
+        return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 };
       }
 
       let data = {};
-      try { data = JSON.parse(textData); } catch (e) { return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 }; }
+      try { data = JSON.parse(textData); } catch (e) { return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 }; }
 
       // 🔥 1. 오늘 매출 (ONEDAY)
       const oneday = data.ONEDAY || {};
@@ -45,7 +45,7 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 🔥 2. 누적 매출 및 상세 정보 (MONTH 및 결제수단)
+      // 🔥 2. 누적 매출 (MONTH)
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -59,7 +59,6 @@ export default async function handler(req, res) {
         todaySales: todaySales,
         totalCount: totalCount,
         avgPrice: avgPrice,
-        // 새로 추가된 상세 데이터들
         monthSales: monthSales,
         monthCount: monthCount,
         details: {
@@ -70,22 +69,27 @@ export default async function handler(req, res) {
       };
 
     } catch (err) {
-      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
+      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 };
     }
   }
 
   const yeoksamCookie = process.env.YEOKSAM_COOKIE;
+  const gfcCookie = process.env.GFC_COOKIE; // 🔥 GFC점 쿠키 불러오기 추가
 
   try {
-    const yeoksamData = await fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie);
+    // 🔥 역삼점과 GFC점을 동시에 조회
+    const [yeoksamData, gfcData] = await Promise.all([
+      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
+      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
+    ]);
 
     return res.status(200).json({
       timestamp: new Date().toISOString(),
       status: "success",
       stores: {
-        solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 },
+        solsot_gfc: { name: "솔솥 GFC점", ...gfcData },
         solsot_yeoksam: { name: "솔솥 역삼점", ...yeoksamData },
-        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 }
+        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0 }
       }
     });
   } catch (error) {
