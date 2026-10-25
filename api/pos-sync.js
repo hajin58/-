@@ -50,12 +50,8 @@ export default async function handler(req, res) {
       try { data = JSON.parse(textData); } catch (e) { data = {}; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
-      if (storeName === "솔솥 역삼점" || storeName === "솔솥 GFC점") {
-        console.log("=====================================");
-        console.log(`[${storeName}] 데이터 키 목록:`, Object.keys(data));
-        console.log(`[${storeName}] 원본 데이터 샘플:`, JSON.stringify(data).substring(0, 500));
-        console.log("=====================================");
-      }
+      // 디버깅용 로그 (Vercel에서 키 이름 확인용)
+      console.log(`[${storeName}] 받은 전체 데이터 키들:`, Object.keys(data));
 
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
@@ -82,8 +78,15 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 🔥 POS 응답에서 시간대별 데이터 추출 (대소문자/키 이름 대응을 위해 여러 경우의 수 확인)
-      const timeData = data.TIME || data.Time || data.time || {};
+      // 🔥 가능한 모든 시간대별 데이터 키 이름 대응 (TIME, Time, time, TIMEDETAIL 등)
+      let timeData = {};
+      const possibleKeys = Object.keys(data);
+      for (const key of possibleKeys) {
+        if (key.toLowerCase() === 'time' && typeof data[key] === 'object') {
+          timeData = data[key];
+          break;
+        }
+      }
 
       return {
         connected: true,
@@ -93,7 +96,7 @@ export default async function handler(req, res) {
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
           cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
         },
-        TIME: timeData // 🔥 프론트엔드로 시간대별 데이터 전달
+        TIME: timeData // 추출된 시간대별 데이터 전달
       };
 
     } catch (err) {
