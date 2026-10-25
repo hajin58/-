@@ -236,7 +236,8 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const growth = getGrowthRate(currentDisplay?.todaySales, currentDisplay?.prevWeekSales);
   const currentMonthName = `${new Date().getMonth() + 1}월`;
 
-  // 🔥 시간대별 + 지점별 합산 색상 그래프 로직
+  
+  // 🔥 유연하게 시간대별 데이터를 파싱하는 로직
   const timeChartData = useMemo(() => {
     const defaultHours = ['11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21'];
     let hourData = {};
@@ -248,14 +249,32 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
     const processTimeData = (storeId, storeData) => {
       const timeObj = storeData?.TIME || {}; 
       Object.keys(timeObj).forEach(key => {
-        const hour = key.substring(0, 2);
+        const hour = key.replace(/[^0-9]/g, '').substring(0, 2); 
         if (defaultHours.includes(hour)) {
-          const amount = timeObj[key] || 0;
+          const amount = parseInt(timeObj[key] || 0, 10);
           hourData[hour][storeId] += amount;
           hourData[hour].total += amount;
         }
       });
     };
+
+    if (selectedStore === 'all') {
+      processTimeData('solsot_yeoksam', posData.solsot_yeoksam);
+      processTimeData('solsot_gfc', posData.solsot_gfc);
+      processTimeData('goteat_seolleung', posData.goteat_seolleung);
+    } else {
+      processTimeData(selectedStore, posData[selectedStore]);
+    }
+
+    const chartArray = defaultHours.map(hour => ({
+      hour: `${hour}시`,
+      ...hourData[hour]
+    }));
+
+    const maxSales = Math.max(...chartArray.map(d => d.total), 1);
+
+    return { chartArray, maxSales };
+  }, [posData, selectedStore]);
 
     if (selectedStore === 'all') {
       processTimeData('solsot_yeoksam', posData.solsot_yeoksam);
