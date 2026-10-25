@@ -7,47 +7,26 @@ export default async function handler(req, res) {
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
-  const cookies = {
-    solsot_yeoksam: process.env.YEOKSAM_COOKIE || "",
-    solsot_gfc: process.env.GFC_COOKIE || "",
-    goteat_seolleung: process.env.SEOLLEUNG_COOKIE || ""
-  };
-
-  async function fetchStoreData(storeKey, cookieValue) {
-    const emptyResult = {
-      connected: false,
-      todaySales: 0,
-      totalCount: 0,
-      avgPrice: 0,
-      monthSales: 0,
-      monthCount: 0,
-      prevWeekSales: 0,
-      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 },
-      TIME: {}
-    };
-
-    if (!cookieValue) return emptyResult;
-
+  async function fetchStoreDataWithCookie(storeName, cookieValue) {
     try {
+      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
+
       const now = new Date();
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-      const todayStr = kst.toISOString().split('T')[0];
-      
-      const year = kst.getFullYear();
-      const month = String(kst.getMonth() + 1).padStart(2, '0');
-      const monthStartStr = `${year}-${month}-01`;
+      const todayStr = kst.toISOString().split('T')[0]; 
 
       const prevWeekDate = new Date(kst);
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
 
-      const [salesRes, prevRes, monthRes] = await Promise.all([
+      const [salesRes, prevRes] = await Promise.all([
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
           headers: {
             "Cookie": `JSESSIONID=${cookieValue}`,
             "User-Agent": "Mozilla/5.0",
             "Referer": "https://asp.unionpos.co.kr/",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
           body: `sch_date=${todayStr}`
@@ -60,84 +39,90 @@ export default async function handler(req, res) {
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
           body: `sch_date=${prevWeekStr}`
-        }),
-        fetch(`${PROXY_URL}/v2/onmonth`, {
-          method: "POST",
-          headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-          },
-          body: `sch_sdate=${monthStartStr}&sch_edate=${todayStr}`
         })
       ]);
 
-      if (!salesRes.ok) return emptyResult;
-
       const textData = await salesRes.text();
       const prevTextData = await prevRes.text();
-      const monthTextData = await monthRes.text();
 
-      let data = {}, prevData = {}, monthData = {};
+      let data = {};
+      let prevData = {};
       try { data = JSON.parse(textData); } catch (e) { data = {}; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
-      try { monthData = JSON.parse(monthTextData); } catch (e) { monthData = {}; }
 
-      // 1. 당일 데이터 파싱
-      const oneday = data.ONEDAY || data.data || data;
-      const totalCount = parseInt(oneday.SellCnt || oneday.cnt || oneday.SALE_CNT || 0, 10);
-      let todaySales = parseInt(oneday.TotAmt || oneday.totAmt || oneday.saleAmt || oneday.TOT_AMT || 0, 10);
-      if (!todaySales && oneday.NetAmt) todaySales = parseInt(oneday.NetAmt, 10);
+      // 디버깅용 로그 (Vercel에서 키 이름 확인용)
+      console.log(`[${storeName}] 받은 전체 데이터 키들:`, Object.keys(data));
 
+      const oneday = data.ONEDAY || {};
+      const totalCount = parseInt(oneday.SellCnt || 0, 10);
+      const unitAmt = parseFloat(oneday.UnitAmt || 0);
+      let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
+      if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
+        todaySales = Math.round(unitAmt * totalCount);
+      }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 2. 전주 동요일 매출
-      const prevOneday = prevData.ONEDAY || prevData.data || prevData;
-      const prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.totAmt || prevOneday.saleAmt || prevOneday.TOT_AMT || 0, 10);
+      const prevOneday = prevData.ONEDAY || {};
+      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
+      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
+      const prevCount = parseInt(prevOneday.SellCnt || 0, 10);
+      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) {
+        prevWeekSales = Math.round(prevUnitAmt * prevCount);
+      }
 
-      // 3. 이번 달 누적 매출 파싱 보완 (다양한 키 이름 대응)
-      const mObj = monthData.SUMMARY || monthData.ONEDAY || monthData.data || monthData;
-      const monthSales = parseInt(mObj.TotAmt || mObj.totAmt || mObj.saleAmt || mObj.TOT_AMT || mObj.SUM_AMT || 0, 10);
-      const monthCount = parseInt(mObj.SellCnt || mObj.cnt || mObj.SALE_CNT || mObj.SUM_CNT || 0, 10);
+      const month = data.MONTH || {};
+      const monthCount = parseInt(month.SellCnt || 0, 10);
+      const monthUnitAmt = parseFloat(month.UnitAmt || 0);
+      let monthSales = parseInt(month.TotAmt || month.ReceiveAmt || 0, 10);
+      if (monthSales === 0 && monthUnitAmt > 0 && monthCount > 0) {
+        monthSales = Math.round(monthUnitAmt * monthCount);
+      }
 
-      // 4. 결제 수단별 상세 내역
-      const cardAmt = parseInt(oneday.CardAmt || oneday.cardAmt || oneday.CARD_AMT || 0, 10);
-      const cashAmt = parseInt(oneday.CashAmt || oneday.cashAmt || oneday.CASH_AMT || 0, 10);
-      const cancelAmt = parseInt(oneday.CancelAmt || oneday.cancelAmt || oneday.CANCEL_AMT || 0, 10);
-
-      // 5. 시간대별 데이터 파싱 보완 (다양한 구조 대응)
-      let timeObj = data.TIME || data.time || data.TIME_LIST || data.hourList || {};
-      if (Array.isArray(data.TIME)) {
-        timeObj = {};
-        data.TIME.forEach(item => {
-          const hourKey = item.Hour || item.time || item.H || item.HOUR;
-          const val = item.TotAmt || item.amt || item.Sales || item.TOT_AMT || 0;
-          if (hourKey) timeObj[hourKey] = val;
-        });
+      // 🔥 가능한 모든 시간대별 데이터 키 이름 대응 (TIME, Time, time, TIMEDETAIL 등)
+      let timeData = {};
+      const possibleKeys = Object.keys(data);
+      for (const key of possibleKeys) {
+        if (key.toLowerCase() === 'time' && typeof data[key] === 'object') {
+          timeData = data[key];
+          break;
+        }
       }
 
       return {
         connected: true,
-        todaySales,
-        totalCount,
-        avgPrice,
-        monthSales,
-        monthCount,
-        prevWeekSales,
-        details: { cardAmt, cashAmt, cancelAmt },
-        TIME: timeObj
+        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
+        details: {
+          cardAmt: parseInt(oneday.CardAmt || 0, 10),
+          cashAmt: parseInt(oneday.CashAmt || 0, 10),
+          cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
+        },
+        TIME: timeData // 추출된 시간대별 데이터 전달
       };
+
     } catch (err) {
-      console.error(`[${storeKey}] 데이터 동기화 에러:`, err);
-      return emptyResult;
+      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
     }
   }
 
-  const storesResult = {
-    solsot_yeoksam: { name: "솔솥 역삼점", ...(await fetchStoreData('solsot_yeoksam', cookies.solsot_yeoksam)) },
-    solsot_gfc: { name: "솔솥 GFC점", ...(await fetchStoreData('solsot_gfc', cookies.solsot_gfc)) },
-    goteat_seolleung: { name: "갓잇 선릉점", ...(await fetchStoreData('goteat_seolleung', cookies.goteat_seolleung)) }
-  };
+  const yeoksamCookie = process.env.YEOKSAM_COOKIE;
+  const gfcCookie = process.env.GFC_COOKIE;
 
-  return res.status(200).json({ stores: storesResult });
+  try {
+    const [yeoksamData, gfcData] = await Promise.all([
+      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
+      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
+    ]);
+
+    return res.status(200).json({
+      timestamp: new Date().toISOString(),
+      status: "success",
+      stores: {
+        solsot_gfc: { name: "솔솥 GFC점", ...gfcData },
+        solsot_yeoksam: { name: "솔솥 역삼점", ...yeoksamData },
+        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} }
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 }
