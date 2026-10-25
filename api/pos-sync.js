@@ -40,17 +40,17 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 🔥 유니온 응답 데이터에서 소수점 버리고 정확한 정수형 매출 금액으로 산출
-      let todaySales = 0;
-      if (data.MONTH && data.MONTH.UnitAmt) {
-        todaySales = Math.round(parseFloat(data.MONTH.UnitAmt));
-      } else {
-        todaySales = parseInt(data.tot_amt || data.today_sales || 0, 10);
+      // 🔥 [핵심 수정] 건수와 객단가(UnitAmt)를 정확히 가져와서 총 매출 계산
+      const unitAmt = parseFloat(data.MONTH?.UnitAmt || data.unit_amt || 0);
+      const totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 42, 10);
+      
+      // UnitAmt가 평균 단가이므로, 총 매출 = 단가 * 건수 (또는 유니온이 주는 총액 필드 우선)
+      let todaySales = parseInt(data.tot_amt || data.today_sales || 0, 10);
+      if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
+        todaySales = Math.round(unitAmt * totalCount);
       }
 
-      // 건수 데이터 파싱
-      const totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 42, 10); // 기본 건수 방어 코드
-      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
+      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : Math.round(unitAmt);
 
       return {
         connected: true,
