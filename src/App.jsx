@@ -3,9 +3,8 @@ import {
   Building2, TrendingUp, Users, ShieldAlert, Camera, 
   CreditCard, RefreshCw, CheckCircle2, 
   Clock, AlertTriangle, Lock, KeyRound, ExternalLink, Video,
-  X, ChevronRight, Calendar, BarChart3
+  X, ChevronRight, BarChart3
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -160,8 +159,8 @@ function MainDashboardContent({ onLogout }) {
 
   const currentDisplay = getCalculatedData();
   
-  // 월 평균 객단가 계산
-  const monthAvgPrice = currentDisplay?.monthCount > 0 
+  // 전체 누적 평균 객단가 계산
+  const accumulatedAvgPrice = currentDisplay?.monthCount > 0 
     ? Math.round(currentDisplay.monthSales / currentDisplay.monthCount) 
     : 0;
 
@@ -169,16 +168,6 @@ function MainDashboardContent({ onLogout }) {
     { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected, cctvCount: 4 },
     { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: posData.solsot_yeoksam?.connected, cctvCount: 3 },
     { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 중순 오픈예정', posConnected: false, cctvCount: 2 },
-  ];
-
-  const hourlySales = [
-    { time: '11시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
-    { time: '12시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
-    { time: '13시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
-    { time: '14시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
-    { time: '17시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
-    { time: '18시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
-    { time: '19시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
   ];
 
   return (
@@ -288,11 +277,11 @@ function MainDashboardContent({ onLogout }) {
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                 <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs text-slate-400 font-medium">총 결제 건수</span>
+                  <span className="text-xs text-slate-400 font-medium">오늘 결제 건수</span>
                   <CreditCard className="w-4 h-4 text-blue-400" />
                 </div>
                 <div className="text-2xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
-                <div className="text-xs text-slate-400 mt-1">객단가 약 {(currentDisplay?.avgPrice || 0).toLocaleString()}원</div>
+                <div className="text-xs text-slate-400 mt-1">오늘 객단가 약 {(currentDisplay?.avgPrice || 0).toLocaleString()}원</div>
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
@@ -315,28 +304,6 @@ function MainDashboardContent({ onLogout }) {
                 <div className="text-xs text-slate-400 mt-1">
                   {currentDisplay?.connected ? 'API 서버 연동 상태 양호' : '데이터를 불러오지 못함'}
                 </div>
-              </div>
-            </div>
-
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-base font-bold text-white">시간대별 매출 추이 (만원)</h3>
-                  <p className="text-xs text-slate-400 mt-0.5">점심/저녁 피크타임 매출 현황 분석</p>
-                </div>
-                <span className="text-xs text-slate-400 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">실시간 집계중</span>
-              </div>
-              <div className="h-72 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={hourlySales}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="time" stroke="#94a3b8" fontSize={12} />
-                    <YAxis stroke="#94a3b8" fontSize={12} />
-                    <Tooltip contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff', borderRadius: '8px' }} />
-                    <Line type="monotone" dataKey="솔솥GFC점" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4 }} />
-                    <Line type="monotone" dataKey="솔솥역삼점" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
               </div>
             </div>
           </div>
@@ -406,16 +373,16 @@ function MainDashboardContent({ onLogout }) {
         )}
       </main>
 
-      {/* 🔥 외식업 최적화 요약 대시보드 모달 */}
+      {/* 🔥 외식업 최적화 누적 현황 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm transition-opacity">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-slate-900 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             
             {/* 모달 헤더 */}
             <div className="flex justify-between items-center p-5 border-b border-slate-800 bg-slate-800/50">
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 <BarChart3 className="w-5 h-5 text-amber-500" />
-                {currentDisplay?.name} 영업 현황
+                {currentDisplay?.name} 누적 현황
               </h2>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white transition">
                 <X className="w-5 h-5" />
@@ -423,49 +390,26 @@ function MainDashboardContent({ onLogout }) {
             </div>
 
             <div className="p-6 space-y-6">
-              
-              {/* 오늘 현황 요약 */}
+              {/* 누적 현황 (오픈 후 지금까지) */}
               <div>
                 <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-emerald-400" /> 오늘 현황
+                  <TrendingUp className="w-4 h-4 text-amber-500" /> 오픈 후 누적 현황
                 </h3>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                    <p className="text-xs text-slate-400 mb-1">오늘 총 매출</p>
-                    <p className="text-xl font-bold text-white">{(currentDisplay?.todaySales || 0).toLocaleString()}원</p>
+                  <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 col-span-2 shadow-inner">
+                    <p className="text-xs text-slate-400 mb-1">총 누적 매출</p>
+                    <p className="text-3xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
                   </div>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                    <p className="text-xs text-slate-400 mb-1">결제 건수</p>
-                    <p className="text-xl font-bold text-white">{(currentDisplay?.totalCount || 0).toLocaleString()}건</p>
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                    <p className="text-xs text-slate-400 mb-1">총 결제 건수</p>
+                    <p className="text-xl font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
                   </div>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 col-span-2">
-                    <p className="text-xs text-slate-400 mb-1">오늘 평균 객단가</p>
-                    <p className="text-lg font-bold text-emerald-400">{(currentDisplay?.avgPrice || 0).toLocaleString()}원</p>
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 shadow-inner">
+                    <p className="text-xs text-slate-400 mb-1">평균 객단가</p>
+                    <p className="text-xl font-bold text-emerald-400">{(accumulatedAvgPrice || 0).toLocaleString()}원</p>
                   </div>
                 </div>
               </div>
-
-              {/* 이번 달 누적 현황 */}
-              <div>
-                <h3 className="text-sm font-bold text-slate-300 mb-3 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-500" /> 이번 달 누적 현황
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 col-span-2">
-                    <p className="text-xs text-slate-400 mb-1">월 누적 매출</p>
-                    <p className="text-2xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                    <p className="text-xs text-slate-400 mb-1">월 누적 건수</p>
-                    <p className="text-lg font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                    <p className="text-xs text-slate-400 mb-1">월 평균 객단가</p>
-                    <p className="text-lg font-bold text-white">{(monthAvgPrice || 0).toLocaleString()}원</p>
-                  </div>
-                </div>
-              </div>
-
             </div>
           </div>
         </div>
