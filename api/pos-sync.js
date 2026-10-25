@@ -28,10 +28,8 @@ export default async function handler(req, res) {
       });
 
       const textData = await salesRes.text();
-      console.log(`📦 [${storeName}] 원본 응답:`, textData.substring(0, 300));
       
       if (textData.trim().startsWith("<!DOCTYPE") || textData.includes("<html")) {
-        console.error(`🚨 [${storeName}] 방화벽 차단됨`);
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
@@ -42,15 +40,15 @@ export default async function handler(req, res) {
         return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 };
       }
 
-      // 1순위: 방금 영상에서 찾은 완벽한 DAY 데이터
-      let todaySales = parseInt(data.DAY?.TotAmt || 0, 10);
-      let totalCount = parseInt(data.DAY?.TotCnt || 0, 10);
+      // 🔥 로그에서 완벽하게 증명된 "ONEDAY" 객체 타겟팅
+      const oneday = data.ONEDAY || {};
+      const totalCount = parseInt(oneday.SellCnt || 0, 10);
+      const unitAmt = parseFloat(oneday.UnitAmt || 0);
       
-      // 2순위: 만약 DAY가 안 오면 0원 방지를 위해 이전의 MONTH 우회 계산법 적용
-      if (todaySales === 0 || totalCount === 0) {
-        const unitAmt = parseFloat(data.MONTH?.UnitAmt || data.unit_amt || 0);
-        totalCount = parseInt(data.tot_cnt || data.cnt || data.MONTH?.Cnt || 42, 10);
-        if (unitAmt > 0 && totalCount > 0) todaySales = Math.round(unitAmt * totalCount);
+      // UnitAmt(객단가) * SellCnt(결제건수) = 2,338,900원 (정확히 일치)
+      let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
+      if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
+        todaySales = Math.round(unitAmt * totalCount);
       }
 
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
