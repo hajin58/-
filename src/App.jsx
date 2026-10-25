@@ -11,7 +11,7 @@ export default function App() {
   const [passwordInput, setPasswordInput] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // 🔒 Master Password 설정 (821125)
+  // 🔒 Master Password 설정
   const MASTER_PASSWORD = "821125";
 
   useEffect(() => {
@@ -103,14 +103,13 @@ function MainDashboardContent({ onLogout }) {
   const [loading, setLoading] = useState(false);
   const [lastUpdated, setLastUpdated] = useState('');
   
-  // POS 실시간 연동 데이터 상태
+  // 🔥 [수정됨] 모든 가짜 예시 데이터를 0으로 초기화
   const [posData, setPosData] = useState({
-    solsot_gfc: { name: "솔솥 GFC점", connected: true, todaySales: 4250000, totalCount: 114, avgPrice: 37280 },
-    solsot_yeoksam: { name: "솔솥 역삼점", connected: true, todaySales: 3420000, totalCount: 92, avgPrice: 37170 },
+    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 },
     goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0 }
   });
 
-  // POS API 연동 데이터 동기화 함수
   const fetchPosData = async () => {
     setLoading(true);
     try {
@@ -165,14 +164,15 @@ function MainDashboardContent({ onLogout }) {
     { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 중순 오픈예정', posConnected: false, cctvCount: 2 },
   ];
 
+  // 🔥 [수정됨] 시간대별 매출 그래프 가짜 데이터 모두 0으로 초기화
   const hourlySales = [
-    { time: '11시', 솔솥GFC점: 55, 솔솥역삼점: 42, 갓잇선릉점: 0 },
-    { time: '12시', 솔솥GFC점: 140, 솔솥역삼점: 110, 갓잇선릉점: 0 },
-    { time: '13시', 솔솥GFC점: 115, 솔솥역삼점: 90, 갓잇선릉점: 0 },
-    { time: '14시', 솔솥GFC점: 60, 솔솥역삼점: 45, 갓잇선릉점: 0 },
-    { time: '17시', 솔솥GFC점: 70, 솔솥역삼점: 55, 갓잇선릉점: 0 },
-    { time: '18시', 솔솥GFC점: 155, 솔솥역삼점: 125, 갓잇선릉점: 0 },
-    { time: '19시', 솔솥GFC점: 175, 솔솥역삼점: 140, 갓잇선릉점: 0 },
+    { time: '11시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
+    { time: '12시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
+    { time: '13시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
+    { time: '14시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
+    { time: '17시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
+    { time: '18시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
+    { time: '19시', 솔솥GFC점: 0, 솔솥역삼점: 0, 갓잇선릉점: 0 },
   ];
 
   return (
@@ -233,7 +233,7 @@ function MainDashboardContent({ onLogout }) {
               }`}
             >
               <span>{store.name}</span>
-              <span className={`w-2 h-2 rounded-full ${store.posConnected ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span className={`w-2 h-2 rounded-full ${store.posConnected ? 'bg-emerald-400' : 'bg-rose-500'}`} />
             </button>
           ))}
         </div>
@@ -273,7 +273,7 @@ function MainDashboardContent({ onLogout }) {
                   {currentDisplay.todaySales.toLocaleString()}원
                 </div>
                 <div className="text-xs text-emerald-400 mt-1 flex items-center gap-1 font-medium">
-                  ▲ 실시간 수집중 ({lastUpdated ? `${lastUpdated} 기준` : '동기화됨'})
+                  {lastUpdated ? `마지막 동기화: ${lastUpdated}` : '연동 대기 중...'}
                 </div>
               </div>
 
@@ -286,24 +286,27 @@ function MainDashboardContent({ onLogout }) {
                 <div className="text-xs text-slate-400 mt-1">객단가 약 {currentDisplay.avgPrice.toLocaleString()}원</div>
               </div>
 
+              {/* 🔥 [수정됨] 82% 가짜 데이터 삭제 처리 */}
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs text-slate-400 font-medium">테이블 점유율</span>
-                  <Users className="w-4 h-4 text-amber-400" />
+                  <Users className="w-4 h-4 text-slate-500" />
                 </div>
-                <div className="text-2xl font-black text-white tracking-tight">82%</div>
-                <div className="text-xs text-amber-400 mt-1">GFC 10개 / 역삼 8개 가동 중</div>
+                <div className="text-2xl font-black text-slate-500 tracking-tight">- %</div>
+                <div className="text-xs text-slate-500 mt-1">POS 연동 준비 중</div>
               </div>
 
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
                 <div className="flex justify-between items-start mb-2">
                   <span className="text-xs text-slate-400 font-medium">POS 연동 상태</span>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <CheckCircle2 className={`w-4 h-4 ${currentDisplay.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
                 </div>
-                <div className="text-lg font-bold text-emerald-400">
-                  {currentDisplay.connected ? '유니온소프트 정상' : '설정 필요'}
+                <div className={`text-lg font-bold ${currentDisplay.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
+                  {currentDisplay.connected ? '유니온소프트 정상' : '연결 안 됨'}
                 </div>
-                <div className="text-xs text-slate-400 mt-1">API 서버 연동 상태 양호</div>
+                <div className="text-xs text-slate-400 mt-1">
+                  {currentDisplay.connected ? 'API 서버 연동 상태 양호' : '데이터를 불러오지 못함'}
+                </div>
               </div>
             </div>
 
@@ -350,7 +353,7 @@ function MainDashboardContent({ onLogout }) {
               </div>
             </div>
 
-            {/* 솔솥 역삼점 (8000번 모바일 전용 포트 제거, 웹 기본 포트로 수정) */}
+            {/* 솔솥 역삼점 */}
             <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-lg border-emerald-500/30">
               <div className="bg-slate-800/80 px-4 py-3 flex justify-between items-center border-b border-slate-700">
                 <span className="text-xs font-bold text-white flex items-center gap-2">
