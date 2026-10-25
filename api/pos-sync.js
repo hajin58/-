@@ -50,79 +50,14 @@ export default async function handler(req, res) {
       try { data = JSON.parse(textData); } catch (e) { data = {}; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
-      // 디버깅용 로그 (Vercel에서 키 이름 확인용)
-      console.log(`[${storeName}] 받은 전체 데이터 키들:`, Object.keys(data));
+      // 🔥 Vercel Logs에 찍히는 POS 응답 전체 키 구조 확인용
+      console.log(`=====================================`);
+      console.log(`[${storeName}] 받은 데이터 전체 키 목록:`, Object.keys(data));
+      console.log(`[${storeName}] ONEDAY 데이터:`, JSON.stringify(data.ONEDAY || {}));
+      console.log(`[${storeName}] TIME 관련 데이터 후보들:`, Object.keys(data).filter(k => k.toLowerCase().includes('time') || k.toLowerCase().includes('hour')));
+      console.log(`=====================================`);
 
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
-      let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
-      if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
-        todaySales = Math.round(unitAmt * totalCount);
-      }
-      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
-
-      const prevOneday = prevData.ONEDAY || {};
-      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
-      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
-      const prevCount = parseInt(prevOneday.SellCnt || 0, 10);
-      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) {
-        prevWeekSales = Math.round(prevUnitAmt * prevCount);
-      }
-
-      const month = data.MONTH || {};
-      const monthCount = parseInt(month.SellCnt || 0, 10);
-      const monthUnitAmt = parseFloat(month.UnitAmt || 0);
-      let monthSales = parseInt(month.TotAmt || month.ReceiveAmt || 0, 10);
-      if (monthSales === 0 && monthUnitAmt > 0 && monthCount > 0) {
-        monthSales = Math.round(monthUnitAmt * monthCount);
-      }
-
-      // 🔥 가능한 모든 시간대별 데이터 키 이름 대응 (TIME, Time, time, TIMEDETAIL 등)
-      let timeData = {};
-      const possibleKeys = Object.keys(data);
-      for (const key of possibleKeys) {
-        if (key.toLowerCase() === 'time' && typeof data[key] === 'object') {
-          timeData = data[key];
-          break;
-        }
-      }
-
-      return {
-        connected: true,
-        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
-        details: {
-          cardAmt: parseInt(oneday.CardAmt || 0, 10),
-          cashAmt: parseInt(oneday.CashAmt || 0, 10),
-          cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
-        },
-        TIME: timeData // 추출된 시간대별 데이터 전달
-      };
-
-    } catch (err) {
-      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
-    }
-  }
-
-  const yeoksamCookie = process.env.YEOKSAM_COOKIE;
-  const gfcCookie = process.env.GFC_COOKIE;
-
-  try {
-    const [yeoksamData, gfcData] = await Promise.all([
-      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
-      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
-    ]);
-
-    return res.status(200).json({
-      timestamp: new Date().toISOString(),
-      status: "success",
-      stores: {
-        solsot_gfc: { name: "솔솥 GFC점", ...gfcData },
-        solsot_yeoksam: { name: "솔솥 역삼점", ...yeoksamData },
-        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} }
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
-  }
-}
+      let todaySales = parseInt(oneday.TotAmt || o
