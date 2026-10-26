@@ -147,9 +147,9 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [posData, setPosData] = useState({
-    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} },
-    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} },
-    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} }
+    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, TIME: {} },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, TIME: {} },
+    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, TIME: {} }
   });
 
   const fetchPosData = async () => {
@@ -190,10 +190,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
     const totalMonthCount = (posData.solsot_gfc?.monthCount || 0) + (posData.solsot_yeoksam?.monthCount || 0);
     const totalPrevWeekSales = (posData.solsot_gfc?.prevWeekSales || 0) + (posData.solsot_yeoksam?.prevWeekSales || 0);
 
-    const totalCardAmt = (posData.solsot_gfc?.details?.cardAmt || 0) + (posData.solsot_yeoksam?.details?.cardAmt || 0);
-    const totalCashAmt = (posData.solsot_gfc?.details?.cashAmt || 0) + (posData.solsot_yeoksam?.details?.cashAmt || 0);
-    const totalCancelAmt = (posData.solsot_gfc?.details?.cancelAmt || 0) + (posData.solsot_yeoksam?.details?.cancelAmt || 0);
-
     return {
       name: "전체 매장 합산",
       connected: posData.solsot_gfc?.connected && posData.solsot_yeoksam?.connected,
@@ -202,12 +198,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
       avgPrice: avgPrice,
       prevWeekSales: totalPrevWeekSales,
       monthSales: totalMonthSales,
-      monthCount: totalMonthCount,
-      details: {
-        cardAmt: totalCardAmt,
-        cashAmt: totalCashAmt,
-        cancelAmt: totalCancelAmt
-      }
+      monthCount: totalMonthCount
     };
   };
 
@@ -262,7 +253,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
       ...hourData[hour]
     }));
 
-    const maxSales = Math.max(...chartArray.map(d => d.total), 1);
+    const maxSales = Math.max(...chartArray.map(d => d.total), 100000); // 0일때 에러 방지 최소값 설정
 
     return { chartArray, maxSales };
   }, [posData, selectedStore]);
@@ -475,7 +466,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                   </div>
                 </div>
                 <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2 font-medium">
-                  <ShieldCheck className="w-4 h-4 text-amber-400" />
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
                   프록시 자동 세션 유지
                 </div>
               </div>
@@ -536,7 +527,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               </div>
             )}
 
-            {/* 🔥 시간대별 매출 추이 그래프 (텍스트 21시로 수정 완료 및 디자인 강화) */}
+            {/* 🔥 아름다운 꺾은선 (Line) 그래프 적용 완료 */}
             <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950 border border-slate-800/80 rounded-3xl p-7 shadow-2xl backdrop-blur-xl">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
                 <div className="flex items-center gap-3">
@@ -544,72 +535,85 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                     <TrendingUp className="w-4 h-4 text-amber-400" />
                     시간대별 매출 추이
                   </h3>
-                  {selectedStore === 'all' && (
-                    <div className="flex items-center gap-3 text-[11px] font-extrabold bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-800 shadow-inner">
-                      <span className="flex items-center gap-1.5 text-slate-200"><span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)]"></span>역삼</span>
-                      <span className="flex items-center gap-1.5 text-slate-200"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.8)]"></span>GFC</span>
-                    </div>
-                  )}
                 </div>
-                {/* 💡 22시로 잘못 표기되어 있던 부분을 21시로 올바르게 수정 완료 */}
                 <span className="text-xs text-slate-400 font-bold bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
                   11:00 ~ 21:00
                 </span>
               </div>
 
-              <div className="flex items-end justify-between h-52 gap-2 sm:gap-3 mt-6 pt-4 border-t border-slate-800/60">
-                {timeChartData.chartArray.map((item, idx) => {
-                  const isZero = item.total === 0;
+              <div className="relative h-64 w-full mt-8 pt-4 border-t border-slate-800/60">
+                {/* SVG Line Chart */}
+                <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+                    </linearGradient>
+                  </defs>
                   
-                  return (
-                    <div key={idx} className="flex flex-col items-center justify-end h-full w-full group relative">
-                      {!isZero && (
-                        <div className="absolute bottom-full mb-3 opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 text-white text-xs px-3.5 py-2.5 rounded-2xl pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-slate-700 flex flex-col gap-2 backdrop-blur-xl">
-                          <span className="font-black text-amber-400 border-b border-slate-800 pb-1.5">{item.total.toLocaleString()}원</span>
-                          {selectedStore === 'all' && (
-                            <div className="flex flex-col gap-1 text-[11px] font-bold">
-                              {item.solsot_yeoksam > 0 && <span className="text-slate-300 flex justify-between gap-4">역삼점 <span className="text-white">{item.solsot_yeoksam.toLocaleString()}</span></span>}
-                              {item.solsot_gfc > 0 && <span className="text-slate-300 flex justify-between gap-4">GFC점 <span className="text-white">{item.solsot_gfc.toLocaleString()}</span></span>}
-                              {item.goteat_seolleung > 0 && <span className="text-slate-300 flex justify-between gap-4">선릉점 <span className="text-white">{item.goteat_seolleung.toLocaleString()}</span></span>}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      
-                      <div className="w-full relative flex flex-col-reverse items-center justify-start h-full gap-1">
-                        {selectedStore === 'all' ? (
-                          <>
-                            {item.solsot_yeoksam > 0 && (
-                              <div style={{ height: `${(item.solsot_yeoksam / timeChartData.maxSales) * 100}%` }} 
-                                   className="w-full max-w-[2.2rem] bg-gradient-to-t from-amber-600 to-amber-400 hover:from-amber-400 hover:to-amber-300 rounded-lg transition-all duration-500 ease-out shadow-lg shadow-amber-500/10"></div>
-                            )}
-                            {item.solsot_gfc > 0 && (
-                              <div style={{ height: `${(item.solsot_gfc / timeChartData.maxSales) * 100}%` }} 
-                                   className="w-full max-w-[2.2rem] bg-gradient-to-t from-emerald-600 to-emerald-400 hover:from-emerald-400 hover:to-emerald-300 rounded-lg transition-all duration-500 ease-out shadow-lg shadow-emerald-500/10"></div>
-                            )}
-                            {item.goteat_seolleung > 0 && (
-                              <div style={{ height: `${(item.goteat_seolleung / timeChartData.maxSales) * 100}%` }} 
-                                   className="w-full max-w-[2.2rem] bg-gradient-to-t from-blue-600 to-blue-400 hover:from-blue-400 hover:to-blue-300 rounded-lg transition-all duration-500 ease-out shadow-lg shadow-blue-500/10"></div>
-                            )}
-                          </>
-                        ) : (
-                          !isZero && (
-                            <div style={{ height: `${(item.total / timeChartData.maxSales) * 100}%` }} 
-                                 className={`w-full max-w-[2.2rem] rounded-t-xl transition-all duration-500 ease-out bg-gradient-to-t ${
-                                   selectedStore === 'solsot_yeoksam' ? 'from-amber-600 to-amber-400 shadow-[0_0_20px_rgba(251,191,36,0.3)]' :
-                                   selectedStore === 'solsot_gfc' ? 'from-emerald-600 to-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.3)]' :
-                                   'from-blue-600 to-blue-400 shadow-[0_0_20px_rgba(96,165,250,0.3)]'
-                                 }`}></div>
-                          )
+                  {/* Grid Lines */}
+                  <line x1="0" y1="25" x2="100" y2="25" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
+                  <line x1="0" y1="50" x2="100" y2="50" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
+                  <line x1="0" y1="75" x2="100" y2="75" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
+
+                  {(() => {
+                    const points = timeChartData.chartArray.map((d, i) => {
+                      const x = (i / (timeChartData.chartArray.length - 1)) * 100;
+                      // Prevent exceeding bounds, y=0 is top, y=100 is bottom
+                      const y = 100 - (d.total / timeChartData.maxSales) * 100; 
+                      return { x, y: isNaN(y) ? 100 : y };
+                    });
+                    
+                    const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
+                    const areaPoints = `0,100 ${polylinePoints} 100,100`;
+
+                    return (
+                      <>
+                        <polygon points={areaPoints} fill="url(#lineGradient)" />
+                        <polyline 
+                          points={polylinePoints} 
+                          fill="none" 
+                          stroke="#fbbf24" 
+                          strokeWidth="2.5" 
+                          strokeLinecap="round" 
+                          strokeLinejoin="round" 
+                          className="drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]"
+                        />
+                      </>
+                    );
+                  })()}
+                </svg>
+
+                {/* HTML Overlay for Interactive Dots & Tooltips */}
+                <div className="absolute inset-0 w-full h-full flex justify-between items-end">
+                  {timeChartData.chartArray.map((item, idx) => {
+                    const heightPercent = (item.total / timeChartData.maxSales) * 100;
+                    return (
+                      <div key={idx} className="h-full flex flex-col justify-end items-center relative group w-full">
+                        {/* Interactive Dot */}
+                        <div 
+                          className="absolute w-3 h-3 bg-slate-900 border-2 border-amber-400 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-all shadow-[0_0_12px_rgba(251,191,36,1)] scale-50 group-hover:scale-100"
+                          style={{ bottom: `calc(${heightPercent}% - 6px)` }}
+                        ></div>
+
+                        {/* Tooltip */}
+                        {item.total > 0 && (
+                          <div 
+                            className="absolute opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 text-white text-xs px-3.5 py-2.5 rounded-2xl pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-slate-700 flex flex-col gap-1 backdrop-blur-xl -translate-y-4"
+                            style={{ bottom: `${heightPercent}%` }}
+                          >
+                            <span className="font-black text-amber-400">{item.total.toLocaleString()}원</span>
+                          </div>
                         )}
+                        
+                        {/* X-Axis Label */}
+                        <span className="absolute -bottom-6 text-[10px] text-slate-400 font-bold tracking-tighter">
+                          {item.hour.replace('시', '')}
+                        </span>
                       </div>
-                      
-                      <span className="text-[11px] text-slate-400 mt-3 font-bold tracking-tight">
-                        {item.hour}
-                      </span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
@@ -713,24 +717,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
                   </div>
                 </div>
               </div>
-
-              <div className="pt-2 border-t border-slate-800">
-                <h4 className="text-xs font-bold text-slate-400 mb-3.5">오늘 결제 수단별 상세 내역</h4>
-                <div className="grid grid-cols-3 gap-2.5 text-center">
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-medium">카드 결제</p>
-                    <p className="text-xs font-bold text-blue-400 mt-1.5">{(currentDisplay?.details?.cardAmt || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-medium">현금 결제</p>
-                    <p className="text-xs font-bold text-emerald-400 mt-1.5">{(currentDisplay?.details?.cashAmt || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-medium">취소/환불</p>
-                    <p className="text-xs font-bold text-rose-400 mt-1.5">{(currentDisplay?.details?.cancelAmt || 0).toLocaleString()}원</p>
-                  </div>
-                </div>
-              </div>
+              {/* 결제 수단별 상세 내역 (카드/현금/취소) 영역 완벽히 삭제 완료 */}
             </div>
           </div>
         </div>
