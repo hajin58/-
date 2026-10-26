@@ -11,7 +11,8 @@ export default async function handler(req, res) {
     const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
       monthSales: 0, monthCount: 0, prevWeekSales: 0, 
-      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} 
+      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {},
+      _debugHourData: "쿠키없음"
     };
 
     try {
@@ -21,7 +22,6 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      // 일일 총괄 데이터와 시간대별 전용 데이터(/v2/period/hour) 동시 호출
       const [salesRes, hourRes] = await Promise.all([
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
@@ -58,7 +58,6 @@ export default async function handler(req, res) {
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
-      // 1. 오늘 매출 및 결제수단 상세 파싱
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -68,7 +67,6 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 취소 금액 탐색
       let cancelAmt = 0;
       for (const key of Object.keys(oneday)) {
         const lowerKey = key.toLowerCase();
@@ -84,7 +82,6 @@ export default async function handler(req, res) {
         cancelAmt = 15000;
       }
 
-      // 2. 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -93,13 +90,10 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 3. 시간대별 데이터 유연한 파싱 (어떤 포맷이든 완벽 대응)
       let timeData = {};
       if (hourData) {
         if (hourData.TIME && typeof hourData.TIME === 'object') {
           timeData = hourData.TIME;
-        } else if (hourData.data && typeof hourData.data === 'object') {
-          timeData = hourData.data;
         } else if (Array.isArray(hourData)) {
           hourData.forEach(item => {
             const h = String(item.Hour || item.TIME_STR || item.hour || item.TIME || '').replace(/[^0-9]/g, '').substring(0, 2);
@@ -112,15 +106,6 @@ export default async function handler(req, res) {
             const val = parseInt(item.TotAmt || item.SalesAmt || item.Amt || 0, 10);
             if (h) timeData[h] = val;
           });
-        } else {
-          // 객체 키값 자체가 시간 형태인 경우 탐색
-          for (const k of Object.keys(hourData)) {
-            const cleanKey = k.replace(/[^0-9]/g, '');
-            if (cleanKey.length === 2) {
-              const val = parseInt(hourData[k], 10);
-              if (!isNaN(val)) timeData[cleanKey] = val;
-            }
-          }
         }
       }
 
@@ -137,7 +122,9 @@ export default async function handler(req, res) {
           cashAmt: parseInt(oneday.CashAmt || oneday.CshAmt || 0, 10),
           cancelAmt: cancelAmt
         },
-        TIME: timeData
+        TIME: timeData,
+        // 🔥 포스기 원본 문자열을 그대로 반환 (디버깅용)
+        _debugHourData: hourTextData.substring(0, 500)
       };
 
     } catch (err) {
