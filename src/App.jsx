@@ -177,26 +177,43 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
     return () => clearInterval(interval);
   }, []);
 
+  // 💡 메인 카드가 0원으로 뜨지 않도록 데이터 파싱 보장 맵핑
   const getCalculatedData = () => {
-    if (selectedStore === 'solsot_gfc') return posData.solsot_gfc;
-    if (selectedStore === 'solsot_yeoksam') return posData.solsot_yeoksam;
-    if (selectedStore === 'goteat_seolleung') return posData.goteat_seolleung;
+    const getItem = (store) => {
+      const s = store || {};
+      return {
+        name: s.name || '',
+        connected: Boolean(s.connected),
+        todaySales: Number(s.todaySales || s.today_sales || 0),
+        totalCount: Number(s.totalCount || s.total_count || 0),
+        avgPrice: Number(s.avgPrice || s.avg_price || 0),
+        monthSales: Number(s.monthSales || s.month_sales || 0),
+        monthCount: Number(s.monthCount || s.month_count || 0),
+        prevWeekSales: Number(s.prevWeekSales || 0)
+      };
+    };
+
+    if (selectedStore === 'solsot_gfc') return getItem(posData.solsot_gfc);
+    if (selectedStore === 'solsot_yeoksam') return getItem(posData.solsot_yeoksam);
+    if (selectedStore === 'goteat_seolleung') return getItem(posData.goteat_seolleung);
     
-    const totalSales = (posData.solsot_gfc?.todaySales || 0) + (posData.solsot_yeoksam?.todaySales || 0);
-    const totalCount = (posData.solsot_gfc?.totalCount || 0) + (posData.solsot_yeoksam?.totalCount || 0);
+    const gfc = getItem(posData.solsot_gfc);
+    const yeoksam = getItem(posData.solsot_yeoksam);
+
+    const totalSales = gfc.todaySales + yeoksam.todaySales;
+    const totalCount = gfc.totalCount + yeoksam.totalCount;
     const avgPrice = totalCount > 0 ? Math.round(totalSales / totalCount) : 0;
     
-    const totalMonthSales = (posData.solsot_gfc?.monthSales || 0) + (posData.solsot_yeoksam?.monthSales || 0);
-    const totalMonthCount = (posData.solsot_gfc?.monthCount || 0) + (posData.solsot_yeoksam?.monthCount || 0);
-    const totalPrevWeekSales = (posData.solsot_gfc?.prevWeekSales || 0) + (posData.solsot_yeoksam?.prevWeekSales || 0);
+    const totalMonthSales = gfc.monthSales + yeoksam.monthSales;
+    const totalMonthCount = gfc.monthCount + yeoksam.monthCount;
 
     return {
       name: "전체 매장 합산",
-      connected: posData.solsot_gfc?.connected || posData.solsot_yeoksam?.connected,
+      connected: gfc.connected || yeoksam.connected,
       todaySales: totalSales,
       totalCount: totalCount,
       avgPrice: avgPrice,
-      prevWeekSales: totalPrevWeekSales,
+      prevWeekSales: gfc.prevWeekSales + yeoksam.prevWeekSales,
       monthSales: totalMonthSales,
       monthCount: totalMonthCount
     };
@@ -217,9 +234,9 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const currentMonthName = `${new Date().getMonth() + 1}월`;
 
   const stores = [
-    { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected, cctvCount: 4 },
-    { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: posData.solsot_yeoksam?.connected, cctvCount: 3 },
-    { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 오픈', posConnected: false, cctvCount: 2 },
+    { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected },
+    { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: posData.solsot_yeoksam?.connected },
+    { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 오픈', posConnected: false },
   ];
 
   return (
@@ -442,8 +459,8 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
 
                 <div className="space-y-5 relative z-10">
                   {(() => {
-                    const yeoksamSales = posData.solsot_yeoksam?.todaySales || 0;
-                    const gfcSales = posData.solsot_gfc?.todaySales || 0;
+                    const yeoksamSales = Number(posData.solsot_yeoksam?.todaySales || posData.solsot_yeoksam?.today_sales || 0);
+                    const gfcSales = Number(posData.solsot_gfc?.todaySales || posData.solsot_gfc?.today_sales || 0);
                     const totalSales = yeoksamSales + gfcSales;
                     
                     const yeoksamPercent = totalSales > 0 ? ((yeoksamSales / totalSales) * 100).toFixed(1) : 0;
@@ -550,7 +567,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         )}
       </main>
 
-      {/* 🔥 대형 10월 누적 매출 리포트 모달 (카드/현금/취소 완전히 삭제 후 크기 확장) */}
+      {/* 대형 10월 누적 매출 리포트 모달 (카드/현금/취소 완벽 제거 후 확장) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity">
           <div className="bg-slate-900 border border-slate-700/80 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
