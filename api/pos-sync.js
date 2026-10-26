@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
-      // 1. 오늘 매출 및 결제수단 상세 파싱 (취소/환불 필드 다양한 변형 대응)
+      // 1. 오늘 매출 및 결제수단 상세 파싱
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -49,11 +49,12 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 취소/환불 금액 키를 철저하게 탐색 (CancelAmt, CanAmt, DCancelAmt 등)
+      // 💡 GFC점 취소 금액을 찾기 위해 ONEDAY 안의 모든 키를 전수 조사하여 'cancel'이나 'can'이 포함된 값을 탐색
       let cancelAmt = 0;
-      for (const k of Object.keys(oneday)) {
-        if (k.toLowerCase().includes('cancel') || k.toLowerCase().includes('canamt')) {
-          const val = parseInt(oneday[k], 10);
+      for (const key of Object.keys(oneday)) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('cancel') || lowerKey.includes('can') || lowerKey.includes('cnl')) {
+          const val = parseInt(oneday[key], 10);
           if (!isNaN(val) && val > 0) {
             cancelAmt = val;
             break;
@@ -70,7 +71,7 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 3. 시간대별 데이터 탐색 및 생성
+      // 3. 시간대별 데이터 탐색 및 1,000원 단위 정수형 배분
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
@@ -80,7 +81,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // 포스에서 시간 데이터를 안 줄 경우, 실제 매출 기반 비례 배분
+      // 포스에서 시간 데이터를 안 줄 경우, 1원 단위 없이 1,000원 단위로 깔끔하게 떨어지도록 분배
       if (Object.keys(timeData).length === 0 && todaySales > 0) {
         const weights = {
           "11": 0.05,
@@ -101,9 +102,10 @@ export default async function handler(req, res) {
         
         hours.forEach((h, idx) => {
           if (idx === hours.length - 1) {
-            timeData[h] = todaySales - allocatedSum;
+            timeData[h] = Math.max(0, todaySales - allocatedSum);
           } else {
-            const amount = Math.round(todaySales * weights[h]);
+            // 1,000원 단위로 깔끔하게 반올림 처리
+            const amount = Math.round((todaySales * weights[h]) / 1000) * 1000;
             timeData[h] = amount;
             allocatedSum += amount;
           }
