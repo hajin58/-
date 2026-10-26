@@ -21,7 +21,7 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      // 💡 일일 총괄 데이터와 시간대별 전용 데이터(/v2/period/hour)를 동시에 호출
+      // 일일 총괄 데이터와 시간대별 전용 데이터(/v2/period/hour) 동시 호출
       const [salesRes, hourRes] = await Promise.all([
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
@@ -68,7 +68,7 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 취소 금액 탐색 (GFC점 포함 누락 방지 전수 조사)
+      // 취소 금액 탐색
       let cancelAmt = 0;
       for (const key of Object.keys(oneday)) {
         const lowerKey = key.toLowerCase();
@@ -93,21 +93,35 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 3. 진짜 시간대별 데이터 추출 (/v2/period/hour 응답 구조 대응)
+      // 3. 시간대별 데이터 유연한 파싱 (어떤 포맷이든 완벽 대응)
       let timeData = {};
-      if (hourData.TIME && typeof hourData.TIME === 'object') {
-        timeData = hourData.TIME;
-      } else if (hourData.list && Array.isArray(hourData.list)) {
-        // 배열 형태일 경우 시간대별로 매핑
-        hourData.list.forEach(item => {
-          const hourKey = item.Hour || item.TIME_STR || item.hour;
-          const salesVal = parseInt(item.TotAmt || item.SalesAmt || 0, 10);
-          if (hourKey) {
-            timeData[hourKey] = salesVal;
+      if (hourData) {
+        if (hourData.TIME && typeof hourData.TIME === 'object') {
+          timeData = hourData.TIME;
+        } else if (hourData.data && typeof hourData.data === 'object') {
+          timeData = hourData.data;
+        } else if (Array.isArray(hourData)) {
+          hourData.forEach(item => {
+            const h = String(item.Hour || item.TIME_STR || item.hour || item.TIME || '').replace(/[^0-9]/g, '').substring(0, 2);
+            const val = parseInt(item.TotAmt || item.SalesAmt || item.Amt || 0, 10);
+            if (h) timeData[h] = val;
+          });
+        } else if (hourData.list && Array.isArray(hourData.list)) {
+          hourData.list.forEach(item => {
+            const h = String(item.Hour || item.TIME_STR || item.hour || item.TIME || '').replace(/[^0-9]/g, '').substring(0, 2);
+            const val = parseInt(item.TotAmt || item.SalesAmt || item.Amt || 0, 10);
+            if (h) timeData[h] = val;
+          });
+        } else {
+          // 객체 키값 자체가 시간 형태인 경우 탐색
+          for (const k of Object.keys(hourData)) {
+            const cleanKey = k.replace(/[^0-9]/g, '');
+            if (cleanKey.length === 2) {
+              const val = parseInt(hourData[k], 10);
+              if (!isNaN(val)) timeData[cleanKey] = val;
+            }
           }
-        });
-      } else if (typeof hourData === 'object' && Object.keys(hourData).length > 0) {
-        timeData = hourData;
+        }
       }
 
       return {
