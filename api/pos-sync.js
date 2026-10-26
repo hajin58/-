@@ -39,7 +39,7 @@ export default async function handler(req, res) {
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
-      // 1. 오늘 매출 파싱
+      // 1. 오늘 매출 및 결제수단 상세 파싱 (취소/환불 필드 다양한 변형 대응)
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -48,6 +48,18 @@ export default async function handler(req, res) {
         todaySales = Math.round(unitAmt * totalCount);
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
+
+      // 취소/환불 금액 키를 철저하게 탐색 (CancelAmt, CanAmt, DCancelAmt 등)
+      let cancelAmt = 0;
+      for (const k of Object.keys(oneday)) {
+        if (k.toLowerCase().includes('cancel') || k.toLowerCase().includes('canamt')) {
+          const val = parseInt(oneday[k], 10);
+          if (!isNaN(val) && val > 0) {
+            cancelAmt = val;
+            break;
+          }
+        }
+      }
 
       // 2. 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
@@ -58,7 +70,7 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 3. 시간대별 데이터 탐색 및 정밀 분배 (총 매출과 1원도 안 틀리게 매칭)
+      // 3. 시간대별 데이터 탐색 및 생성
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
@@ -68,7 +80,7 @@ export default async function handler(req, res) {
         }
       }
 
-      // 포스에서 시간 데이터를 안 줄 경우, 실제 요식업 피크 타임 패턴에 맞춰 오늘 총 매출을 완벽하게 분배
+      // 포스에서 시간 데이터를 안 줄 경우, 실제 매출 기반 비례 배분
       if (Object.keys(timeData).length === 0 && todaySales > 0) {
         const weights = {
           "11": 0.05,
@@ -89,7 +101,6 @@ export default async function handler(req, res) {
         
         hours.forEach((h, idx) => {
           if (idx === hours.length - 1) {
-            // 마지막 시간대에 잔여 오차를 몰아주어 총 매출과 100% 일치시킴
             timeData[h] = todaySales - allocatedSum;
           } else {
             const amount = Math.round(todaySales * weights[h]);
@@ -108,9 +119,9 @@ export default async function handler(req, res) {
         monthSales, 
         monthCount,
         details: {
-          cardAmt: parseInt(oneday.CardAmt || 0, 10),
-          cashAmt: parseInt(oneday.CashAmt || 0, 10),
-          cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
+          cardAmt: parseInt(oneday.CardAmt || oneday.CrdAmt || 0, 10),
+          cashAmt: parseInt(oneday.CashAmt || oneday.CshAmt || 0, 10),
+          cancelAmt: cancelAmt
         },
         TIME: timeData
       };
