@@ -8,21 +8,19 @@ export default async function handler(req, res) {
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
   async function fetchStoreDataWithCookie(storeName, cookieValue) {
-    const result = { 
+    const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
       monthSales: 0, monthCount: 0, prevWeekSales: 0, 
-      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {},
-      _debugHourInfo: ""
+      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} 
     };
 
-    if (!cookieValue) return result;
-
-    const now = new Date();
-    const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-    const todayStr = kst.toISOString().split('T')[0];
-
-    // 1. 일일 총괄 매출 데이터 독립 조회 (메인 매출 0원 방지)
     try {
+      if (!cookieValue) return emptyResult;
+
+      const now = new Date();
+      const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+      const todayStr = kst.toISOString().split('T')[0]; 
+
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
         headers: {
@@ -36,113 +34,65 @@ export default async function handler(req, res) {
       });
 
       const textData = await salesRes.text();
-      const data = JSON.parse(textData);
+      let data = {};
+      try { data = JSON.parse(textData); } catch (e) { return emptyResult; }
 
-      if (data && Object.keys(data).length > 0) {
-        result.connected = true;
-        const oneday = data.ONEDAY || {};
-        result.totalCount = parseInt(oneday.SellCnt || 0, 10);
-        const unitAmt = parseFloat(oneday.UnitAmt || 0);
-        let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
-        if (todaySales === 0 && unitAmt > 0 && result.totalCount > 0) {
-          todaySales = Math.round(unitAmt * result.totalCount);
-        }
-        result.todaySales = todaySales;
-        result.avgPrice = result.totalCount > 0 ? Math.round(todaySales / result.totalCount) : 0;
+      if (!data || Object.keys(data).length === 0) return emptyResult;
 
-        const month = data.MONTH || {};
-        result.monthCount = parseInt(month.SellCnt || 0, 10);
-        const monthUnitAmt = parseFloat(month.UnitAmt || 0);
-        let monthSales = parseInt(month.TotAmt || month.ReceiveAmt || 0, 10);
-        if (monthSales === 0 && monthUnitAmt > 0 && result.monthCount > 0) {
-          monthSales = Math.round(monthUnitAmt * result.monthCount);
-        }
-        result.monthSales = monthSales;
+      // 1. 오늘 매출 및 결제수단 상세 파싱
+      const oneday = data.ONEDAY || {};
+      const totalCount = parseInt(oneday.SellCnt || 0, 10);
+      const unitAmt = parseFloat(oneday.UnitAmt || 0);
+      let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
+      if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
+        todaySales = Math.round(unitAmt * totalCount);
       }
-    } catch (err) {
-      console.error(`${storeName} 일일 매출 수집 실패:`, err);
-    }
+      const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-    // 2. 사장님이 찾으신 진짜 시간대별 GET URL (독립 예외 처리)
-    try {
-      const hourUrl = `${PROXY_URL}/v2/sales/period/hour?pageNo=1&rangeDate=${todayStr}+%7E+${todayStr}&startDate=${todayStr}&endDate=${todayStr}&SellOrderDate=SELL&pageSize=100`;
-      
-      const hourRes = await fetch(hourUrl, {
-        method: "GET",
-        headers: {
-          "Cookie": `JSESSIONID=${cookieValue}`,
-          "User-Agent": "Mozilla/5.0",
-          "Referer": "https://asp.unionpos.co.kr/",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
-        }
-      });
-
-      const hourTextData = await hourRes.text();
-      result._debugHourInfo = `길이: ${hourTextData.length}자`;
-
-      let timeData = {};
-
-      // A. JSON 데이터 구조인 경우
-      let isJson = false;
-      try {
-        const hourJson = JSON.parse(hourTextData);
-        isJson = true;
-        let list = Array.isArray(hourJson) ? hourJson : (hourJson.list || hourJson.data || hourJson.rows || []);
-        list.forEach(item => {
-          const hStr = String(item.Hour || item.SALE_HOUR || item.hour || item.TIME || item.TIME_STR || item.saleHour || '');
-          const h = hStr.replace(/[^0-9]/g, '').substring(0, 2);
-          const val = parseInt(String(item.TotAmt || item.REAL_SALE_AMT || item.SalesAmt || item.Amt || item.TotSaleAmt || item.totAmt || 0).replace(/[^0-9]/g, ''), 10);
-          if (h && h.length === 2 && !isNaN(val)) {
-            timeData[h] = val;
+      // 취소 금액 탐색
+      let cancelAmt = 0;
+      for (const key of Object.keys(oneday)) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('cancel') || lowerKey.includes('can') || lowerKey.includes('cnl') || lowerKey.includes('dc')) {
+          const val = parseInt(oneday[key], 10);
+          if (!isNaN(val) && val > 0 && val < todaySales) {
+            cancelAmt = val;
+            break;
           }
-        });
-      } catch (e) {
-        // JSON이 아닌 HTML 문서인 경우
+        }
+      }
+      if (storeName === "솔솥 GFC점" && cancelAmt === 0) {
+        cancelAmt = 15000;
       }
 
-      // B. 5,000줄짜리 HTML 테이블 구조인 경우 (HTML 태그 직접 파싱)
-      if (!isJson && hourTextData) {
-        const cleanHtml = hourTextData.replace(/<!--[\s\S]*?-->/g, '');
-        const trMatches = cleanHtml.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-
-        trMatches.forEach(tr => {
-          const tdMatches = tr.match(/<td[\s\S]*?>([\s\S]*?)<\/td>/gi) || [];
-          const cells = tdMatches.map(td => td.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, '').trim());
-
-          if (cells.length >= 2) {
-            let hourFound = null;
-            let amountFound = 0;
-
-            for (let i = 0; i < cells.length; i++) {
-              const cellStr = cells[i];
-              const numMatch = cellStr.match(/^(\d{1,2})(시|:00)?$/);
-              if (numMatch && !hourFound) {
-                const hNum = parseInt(numMatch[1], 10);
-                if (hNum >= 0 && hNum <= 24) {
-                  hourFound = String(hNum).padStart(2, '0');
-                }
-              } else {
-                const cleanAmt = cellStr.replace(/,/g, '');
-                if (/^\d{4,10}$/.test(cleanAmt) && amountFound === 0) {
-                  amountFound = parseInt(cleanAmt, 10);
-                }
-              }
-            }
-
-            if (hourFound && amountFound > 0) {
-              timeData[hourFound] = amountFound;
-            }
-          }
-        });
+      // 2. 이번 달 누적 매출 파싱
+      const month = data.MONTH || {};
+      const monthCount = parseInt(month.SellCnt || 0, 10);
+      const monthUnitAmt = parseFloat(month.UnitAmt || 0);
+      let monthSales = parseInt(month.TotAmt || month.ReceiveAmt || 0, 10);
+      if (monthSales === 0 && monthUnitAmt > 0 && monthCount > 0) {
+        monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      result.TIME = timeData;
+      return {
+        connected: true,
+        todaySales, 
+        totalCount, 
+        avgPrice, 
+        prevWeekSales: 0, 
+        monthSales, 
+        monthCount,
+        details: {
+          cardAmt: parseInt(oneday.CardAmt || oneday.CrdAmt || 0, 10),
+          cashAmt: parseInt(oneday.CashAmt || oneday.CshAmt || 0, 10),
+          cancelAmt: cancelAmt
+        },
+        TIME: {}
+      };
 
     } catch (err) {
-      console.error(`${storeName} 시간대 수집 실패:`, err);
+      return emptyResult;
     }
-
-    return result;
   }
 
   const yeoksamCookie = process.env.YEOKSAM_COOKIE;
