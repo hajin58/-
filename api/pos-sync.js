@@ -5,10 +5,11 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: "Method not allowed" });
 
-  const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
-  const LOGIN_URL = "https://asp.unionpos.co.kr/loginCheck.do";
+  // 🔥 프록시 제거! 유니온소프트 서버와 직접 안전하게 다이렉트 통신
+  const BASE_URL = "https://asp.unionpos.co.kr";
+  const LOGIN_URL = `${BASE_URL}/loginCheck.do`;
+  const DATA_URL = `${BASE_URL}/v2/onday`;
 
-  // 💡 1. 자동 로그인 및 진단 로직 추가
   async function getNewCookie(id, pw) {
     if (!id || !pw) return { cookie: null, error: "환경변수 누락 (Vercel 재배포 필요)" };
     
@@ -24,7 +25,6 @@ export default async function handler(req, res) {
         redirect: "manual"
       });
 
-      // Node.js 최신 환경에서의 안전한 쿠키 추출
       let cookies = [];
       if (typeof loginRes.headers.getSetCookie === 'function') {
         cookies = loginRes.headers.getSetCookie();
@@ -38,13 +38,12 @@ export default async function handler(req, res) {
       
       if (match) return { cookie: match[1], error: null };
       
-      return { cookie: null, error: `발급 거부됨 (응답코드: ${loginRes.status}, 계정정보 재확인 필요)` };
+      return { cookie: null, error: `쿠키 발급 거부됨 (응답코드: ${loginRes.status})` };
     } catch (err) {
       return { cookie: null, error: `로그인 통신 에러: ${err.message}` };
     }
   }
 
-  // 💡 2. 데이터 수집 메인 함수
   async function fetchStoreData(storeName, credentials) {
     const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
@@ -53,10 +52,11 @@ export default async function handler(req, res) {
     };
 
     try {
+      // 1. 매번 Vercel 서버 IP로 새로운 쿠키 발급
       const { cookie: freshCookie, error: cookieError } = await getNewCookie(credentials.id, credentials.pw);
       
       if (!freshCookie) {
-        emptyResult.debug_msg = cookieError; // 실패 원인 기록
+        emptyResult.debug_msg = cookieError;
         return emptyResult;
       }
 
@@ -67,15 +67,26 @@ export default async function handler(req, res) {
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
 
+      // 2. 발급받은 IP 그대로 다이렉트 매출 데이터 요청
       const [salesRes, prevRes] = await Promise.all([
-        fetch(`${PROXY_URL}/v2/onday`, {
+        fetch(DATA_URL, {
           method: "POST",
-          headers: { "Cookie": `JSESSIONID=${freshCookie}`, "User-Agent": "Mozilla/5.0", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+          headers: { 
+            "Cookie": `JSESSIONID=${freshCookie}`, 
+            "User-Agent": "Mozilla/5.0", 
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Referer": "https://asp.unionpos.co.kr/"
+          },
           body: `sch_date=${todayStr}`
         }),
-        fetch(`${PROXY_URL}/v2/onday`, {
+        fetch(DATA_URL, {
           method: "POST",
-          headers: { "Cookie": `JSESSIONID=${freshCookie}`, "User-Agent": "Mozilla/5.0", "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+          headers: { 
+            "Cookie": `JSESSIONID=${freshCookie}`, 
+            "User-Agent": "Mozilla/5.0", 
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Referer": "https://asp.unionpos.co.kr/"
+          },
           body: `sch_date=${prevWeekStr}`
         })
       ]);
@@ -86,7 +97,7 @@ export default async function handler(req, res) {
       let data = {};
       let prevData = {};
       
-      try { data = JSON.parse(textData); } catch (e) { emptyResult.debug_msg = "응답 파싱 실패"; return emptyResult; }
+      try { data = JSON.parse(textData); } catch (e) { emptyResult.debug_msg = "응답 파싱 실패 (세션 끊김)"; return emptyResult; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
       if (!data || Object.keys(data).length === 0) {
