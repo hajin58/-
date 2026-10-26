@@ -21,44 +21,22 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      const prevWeekDate = new Date(kst);
-      prevWeekDate.setDate(prevWeekDate.getDate() - 7);
-      const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
-
-      const [salesRes, prevRes] = await Promise.all([
-        fetch(`${PROXY_URL}/v2/onday`, {
-          method: "POST",
-          headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://asp.unionpos.co.kr/",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-          },
-          body: `sch_date=${todayStr}`
-        }),
-        // 💡 7일 전 조회 시 엔드포인트를 다르게 가져가거나 파라미터 확장
-        fetch(`${PROXY_URL}/v2/onday`, {
-          method: "POST",
-          headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://asp.unionpos.co.kr/",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-          },
-          body: `sch_date=${prevWeekStr}`
-        })
-      ]);
+      const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
+        method: "POST",
+        headers: {
+          "Cookie": `JSESSIONID=${cookieValue}`,
+          "User-Agent": "Mozilla/5.0",
+          "Referer": "https://asp.unionpos.co.kr/",
+          "Accept": "application/json, text/javascript, */*; q=0.01",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        body: `sch_date=${todayStr}`
+      });
 
       const textData = await salesRes.text();
-      const prevTextData = await prevRes.text();
-
       let data = {};
-      let prevData = {};
       
       try { data = JSON.parse(textData); } catch (e) { return emptyResult; }
-      try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
@@ -72,28 +50,7 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 2. 💡 7일 전 매출 파싱 (ONEDAY가 없으면 MONTH 안의 데이터나 다른 필드를 총동원해서 추출)
-      let prevWeekSales = 0;
-      const prevOneday = prevData.ONEDAY || {};
-      const prevMonth = prevData.MONTH || {};
-
-      const pTot = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || prevMonth.TotAmt || prevMonth.ReceiveAmt || 0, 10);
-      const pCnt = parseInt(prevOneday.SellCnt || prevMonth.SellCnt || 0, 10);
-      const pUnit = parseFloat(prevOneday.UnitAmt || prevMonth.UnitAmt || 0);
-
-      if (pTot > 0) {
-        prevWeekSales = pTot;
-      } else if (pUnit > 0 && pCnt > 0) {
-        prevWeekSales = Math.round(pUnit * pCnt);
-      }
-
-      // 만약 위에서도 안 잡히면, 유니온소프트 특성상 과거 날짜는 단건 조회 API가 막혀있을 수 있으므로 
-      // 임시로 오늘 매출과 연동되거나 0으로 떨어지지 않게 방어 코드 적용
-      if (prevWeekSales === 0) {
-        prevWeekSales = todaySales; // 비교군이 없을 때 0퍼센트로 무너지지 않도록 처리
-      }
-
-      // 3. 이번 달 누적 매출 파싱
+      // 2. 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -102,6 +59,7 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
+      // 3. 시간대별 데이터 파싱
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
@@ -113,7 +71,12 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
+        todaySales, 
+        totalCount, 
+        avgPrice, 
+        prevWeekSales: 0, // 전주 비교값은 0으로 두어 프론트엔드에서 '대기 중' 처리
+        monthSales, 
+        monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
