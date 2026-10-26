@@ -1,13 +1,20 @@
 export default async function handler(req, res) {
+  // Vercel 표준 CORS 처리
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).json({ error: "Method not allowed" });
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: "Method not allowed" });
+  }
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
-  async function fetchStoreDataWithCookie(storeName, cookieValue) {
+  async function fetchStoreDataWithCookie(cookieValue) {
     const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
       monthSales: 0, monthCount: 0, prevWeekSales: 0, 
@@ -21,47 +28,28 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      const prevWeekDate = new Date(kst);
-      prevWeekDate.setDate(prevWeekDate.getDate() - 7);
-      const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
+      const response = await fetch(`${PROXY_URL}/v2/onday`, {
+        method: "POST",
+        headers: {
+          "Cookie": `JSESSIONID=${cookieValue}`,
+          "User-Agent": "Mozilla/5.0",
+          "Referer": "https://asp.unionpos.co.kr/",
+          "Accept": "application/json, text/javascript, */*; q=0.01",
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+        },
+        body: `sch_date=${todayStr}`
+      });
 
-      const [salesRes, prevRes] = await Promise.all([
-        fetch(`${PROXY_URL}/v2/onday`, {
-          method: "POST",
-          headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://asp.unionpos.co.kr/",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-          },
-          body: `sch_date=${todayStr}`
-        }),
-        fetch(`${PROXY_URL}/v2/onday`, {
-          method: "POST",
-          headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
-            "User-Agent": "Mozilla/5.0",
-            "Referer": "https://asp.unionpos.co.kr/",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-          },
-          body: `sch_date=${prevWeekStr}`
-        })
-      ]);
-
-      const textData = await salesRes.text();
-      const prevTextData = await prevRes.text();
-
+      const textData = await response.text();
       let data = {};
-      let prevData = {};
-      
-      try { data = JSON.parse(textData); } catch (e) { return emptyResult; }
-      try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
+      try { 
+        data = JSON.parse(textData); 
+      } catch (e) { 
+        return emptyResult; 
+      }
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
-      // 1. 오늘 매출 파싱
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -71,24 +59,6 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 2. 💡 7일 전 매출 파싱 (ONEDAY, MONTH 등 모든 가능성 조합)
-      const prevOneday = prevData.ONEDAY || {};
-      const prevMonth = prevData.MONTH || {};
-      
-      let prevWeekSales = parseInt(
-        prevOneday.TotAmt || prevOneday.ReceiveAmt || 
-        prevMonth.TotAmt || prevMonth.ReceiveAmt || 0, 10
-      );
-
-      if (prevWeekSales === 0) {
-        const pCnt = parseInt(prevOneday.SellCnt || prevMonth.SellCnt || 0, 10);
-        const pUnit = parseFloat(prevOneday.UnitAmt || prevMonth.UnitAmt || 0);
-        if (pCnt > 0 && pUnit > 0) {
-          prevWeekSales = Math.round(pUnit * pCnt);
-        }
-      }
-
-      // 3. 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -100,7 +70,7 @@ export default async function handler(req, res) {
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
-        if (key.toLowerCase() === 'time' && typeof data[key] === 'object' && data[key] !== null) {
+        if (key.toLowerCase().includes('time') && typeof data[key] === 'object' && data[key] !== null) {
           timeData = data[key];
           break;
         }
@@ -108,7 +78,12 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
+        todaySales, 
+        totalCount, 
+        avgPrice, 
+        prevWeekSales: 0, 
+        monthSales, 
+        monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
@@ -127,8 +102,8 @@ export default async function handler(req, res) {
 
   try {
     const [yeoksamData, gfcData] = await Promise.all([
-      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
-      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
+      fetchStoreDataWithCookie(yeoksamCookie),
+      fetchStoreDataWithCookie(gfcCookie)
     ]);
 
     return res.status(200).json({
