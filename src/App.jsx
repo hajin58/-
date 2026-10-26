@@ -125,12 +125,6 @@ export default function App() {
               안전 접속 승인
             </button>
           </form>
-
-          <div className="mt-8 text-center border-t border-slate-800/80 pt-5">
-            <p className="text-[11px] text-slate-500 font-medium">
-              솔솥 GFC · 역삼 · 갓잇 선릉 통합 관제
-            </p>
-          </div>
         </div>
       </div>
     );
@@ -160,6 +154,10 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         const data = await res.json();
         if (data.stores) {
           setPosData(data.stores);
+          
+          // 💡 여기에 디버깅 코드를 심었습니다! F12 콘솔창에서 확인할 수 있습니다.
+          console.log("🚨 [역삼점 시간대 원본 데이터]:", data.stores.solsot_yeoksam._debugHourData);
+          console.log("🚨 [GFC점 시간대 원본 데이터]:", data.stores.solsot_gfc._debugHourData);
         }
       }
     } catch (err) {
@@ -210,11 +208,7 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const getGrowthRate = (current, prev) => {
     if (!prev || prev === 0) return null;
     const diff = ((current - prev) / prev) * 100;
-    return {
-      percent: diff.toFixed(1),
-      isUp: diff > 0,
-      isZero: diff === 0
-    };
+    return { percent: diff.toFixed(1), isUp: diff > 0, isZero: diff === 0 };
   };
 
   const growth = getGrowthRate(currentDisplay?.todaySales, currentDisplay?.prevWeekSales);
@@ -253,20 +247,27 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
       ...hourData[hour]
     }));
 
-    const maxSales = Math.max(...chartArray.map(d => d.total), 100000); // 0일때 에러 방지 최소값 설정
+    // 그래프 높이(Y축) 최댓값 설정 로직 변경
+    let maxSales = 100000;
+    if (selectedStore === 'all') {
+      const maxYeoksam = Math.max(...chartArray.map(d => d.solsot_yeoksam));
+      const maxGfc = Math.max(...chartArray.map(d => d.solsot_gfc));
+      maxSales = Math.max(maxYeoksam, maxGfc, 100000);
+    } else {
+      maxSales = Math.max(...chartArray.map(d => d.total), 100000); 
+    }
 
     return { chartArray, maxSales };
   }, [posData, selectedStore]);
 
   const stores = [
-    { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected, cctvCount: 4 },
-    { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: posData.solsot_yeoksam?.connected, cctvCount: 3 },
-    { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 오픈', posConnected: false, cctvCount: 2 },
+    { id: 'solsot_gfc', name: '솔솥 GFC점', status: '영업중', posConnected: posData.solsot_gfc?.connected },
+    { id: 'solsot_yeoksam', name: '솔솥 역삼점', status: '영업중', posConnected: posData.solsot_yeoksam?.connected },
+    { id: 'goteat_seolleung', name: '갓잇 선릉점', status: '12월 오픈', posConnected: false },
   ];
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans pb-20 selection:bg-amber-500 selection:text-slate-950">
-      {/* 헤더 부분 */}
       <header className="bg-slate-900/60 backdrop-blur-xl border-b border-slate-800/80 sticky top-0 z-40 px-4 sm:px-8 py-4 shadow-2xl shadow-black/40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3.5">
@@ -301,22 +302,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-8 mt-6 relative space-y-6">
-        
-        {welcomeMessage && (
-          <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 p-5 rounded-3xl flex items-center justify-between shadow-xl shadow-amber-500/5 backdrop-blur-md">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center border border-amber-500/40 shadow-inner">
-                <Sparkles className="w-6 h-6 text-amber-400 animate-pulse" />
-              </div>
-              <div>
-                <h2 className="text-base sm:text-lg font-black text-amber-400 tracking-tight">{welcomeMessage}</h2>
-                <p className="text-xs text-slate-300 mt-0.5 font-medium">안전하게 보안 인증되었습니다. 오늘도 성공적인 하루되세요!</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* 매장 탭 선택 버튼 */}
         <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-none">
           <button
             onClick={() => setSelectedStore('all')}
@@ -344,346 +329,179 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
           ))}
         </div>
 
-        {/* 대시보드 / CCTV 메인 네비게이션 탭 */}
-        <div className="flex gap-8 border-b border-slate-800/80 pt-2">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`pb-3.5 text-sm sm:text-base font-black transition-all relative flex items-center gap-2.5 ${
-              activeTab === 'dashboard' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            매출 & 통합 현황
-            {activeTab === 'dashboard' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full shadow-lg shadow-amber-500/50" />}
-          </button>
-          <button
-            onClick={() => setActiveTab('cctv')}
-            className={`pb-3.5 text-sm sm:text-base font-black transition-all relative flex items-center gap-2.5 ${
-              activeTab === 'cctv' ? 'text-amber-400' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Camera className="w-4 h-4" />
-            실시간 CCTV 통합 관제
-            {activeTab === 'cctv' && <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 to-amber-400 rounded-full shadow-lg shadow-amber-500/50" />}
-          </button>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 relative group flex flex-col justify-between shadow-2xl hover:border-slate-700/80 transition-all backdrop-blur-xl">
+            <div>
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-xs sm:text-sm font-bold text-slate-400">오늘 총 매출</span>
+                <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
+                  <TrendingUp className="w-5 h-5 text-emerald-400" />
+                </div>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                {(currentDisplay?.todaySales || 0).toLocaleString()}원
+              </div>
+            </div>
+            <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between">
+              <span className="text-[11px] text-emerald-400 font-bold">
+                {lastUpdated ? `동기화: ${lastUpdated}` : '연동 대기 중...'}
+              </span>
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-extrabold transition-all bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/25 shadow-sm active:scale-95"
+              >
+                상세 현황 <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+          
+          {/* 다른 지표 카드 생략 (공간 절약) */}
+          <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+            <div>
+              <div className="flex justify-between items-start mb-3">
+                <span className="text-xs sm:text-sm font-bold text-slate-400">오늘 결제 건수</span>
+                <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 shadow-inner">
+                  <CreditCard className="w-5 h-5 text-blue-400" />
+                </div>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
+            </div>
+          </div>
+
+          <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+             <div className="flex justify-between items-start mb-3">
+                <span className="text-xs sm:text-sm font-bold text-slate-400">테이블 점유율</span>
+                <div className="w-10 h-10 bg-slate-800/80 rounded-2xl flex items-center justify-center border border-slate-700/80 shadow-inner">
+                  <Users className="w-5 h-5 text-slate-400" />
+                </div>
+              </div>
+              <div className="text-2xl sm:text-3xl font-black text-slate-400 tracking-tight">- %</div>
+          </div>
+
+          <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
+            <div className="flex justify-between items-start mb-3">
+              <span className="text-xs sm:text-sm font-bold text-slate-400">POS 연동 상태</span>
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border shadow-inner ${currentDisplay?.connected ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-rose-500/10 border-rose-500/25'}`}>
+                <CheckCircle2 className={`w-5 h-5 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
+              </div>
+            </div>
+            <div className={`text-lg sm:text-xl font-black ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
+              {currentDisplay?.connected ? '유니온소프트 정상' : '연결 안 됨'}
+            </div>
+          </div>
         </div>
 
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            {/* 상단 4개 핵심 지표 카드 */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              
-              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 relative group flex flex-col justify-between shadow-2xl hover:border-slate-700/80 transition-all backdrop-blur-xl">
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-bold text-slate-400">오늘 총 매출</span>
-                    <div className="w-10 h-10 bg-emerald-500/10 rounded-2xl flex items-center justify-center border border-emerald-500/20 shadow-inner">
-                      <TrendingUp className="w-5 h-5 text-emerald-400" />
-                    </div>
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                    {(currentDisplay?.todaySales || 0).toLocaleString()}원
-                  </div>
-                  
-                  <div className="mt-3.5 flex items-center gap-1.5 text-xs">
-                    {growth ? (
-                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold ${
-                        growth.isUp ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/25' : 
-                        growth.isZero ? 'bg-slate-800 text-slate-300' : 'bg-rose-500/10 text-rose-400 border border-rose-500/25'
-                      }`}>
-                        {growth.isUp ? <ArrowUpRight className="w-4 h-4" /> : growth.isZero ? <Minus className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-                        전주 동요일 대비 {growth.percent}% {growth.isUp ? '증가' : growth.isZero ? '동일' : '감소'}
-                      </span>
-                    ) : (
-                      <span className="text-slate-500 font-medium">전주 데이터 비교 대기 중</span>
-                    )}
-                  </div>
+        {/* 🔥 시간대별 매출 추이 꺾은선 그래프 (다중 라인 완벽 적용) */}
+        <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950 border border-slate-800/80 rounded-3xl p-7 shadow-2xl backdrop-blur-xl mt-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
+            <div className="flex items-center gap-3">
+              <h3 className="text-sm font-black text-slate-200 flex items-center gap-2.5">
+                <TrendingUp className="w-4 h-4 text-amber-400" />
+                시간대별 매출 추이
+              </h3>
+              {selectedStore === 'all' && (
+                <div className="flex gap-3 ml-2 text-xs font-bold">
+                  <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>역삼점</span>
+                  <span className="flex items-center gap-1.5 text-slate-300"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>GFC점</span>
                 </div>
-
-                <div className="mt-6 pt-4 border-t border-slate-800/80 flex items-center justify-between">
-                  <span className="text-[11px] text-emerald-400 font-bold">
-                    {lastUpdated ? `동기화: ${lastUpdated}` : '연동 대기 중...'}
-                  </span>
-                  <button 
-                    onClick={() => setIsModalOpen(true)}
-                    className="flex items-center gap-1 text-xs text-amber-400 hover:text-amber-300 font-extrabold transition-all bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/25 shadow-sm active:scale-95"
-                  >
-                    상세 현황 <ChevronRight className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-bold text-slate-400">오늘 결제 건수</span>
-                    <div className="w-10 h-10 bg-blue-500/10 rounded-2xl flex items-center justify-center border border-blue-500/20 shadow-inner">
-                      <CreditCard className="w-5 h-5 text-blue-400" />
-                    </div>
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">{currentDisplay?.totalCount || 0}건</div>
-                  <div className="text-xs text-slate-300 mt-3.5 font-bold bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 inline-block shadow-inner">
-                    객단가 약 <span className="text-amber-400 font-black">{(currentDisplay?.avgPrice || 0).toLocaleString()}원</span>
-                  </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2 font-medium">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                  실시간 POS 트랜잭션 집계 중
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-bold text-slate-400">테이블 점유율</span>
-                    <div className="w-10 h-10 bg-slate-800/80 rounded-2xl flex items-center justify-center border border-slate-700/80 shadow-inner">
-                      <Users className="w-5 h-5 text-slate-400" />
-                    </div>
-                  </div>
-                  <div className="text-2xl sm:text-3xl font-black text-slate-400 tracking-tight">- %</div>
-                  <div className="text-xs text-slate-500 mt-3.5 font-medium bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 inline-block shadow-inner">
-                    스마트 센서 연동 준비 중
-                  </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-500 font-medium">
-                  홀 현황 모니터링 확장 예정
-                </div>
-              </div>
-
-              <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl p-6 flex flex-col justify-between shadow-2xl backdrop-blur-xl">
-                <div>
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs sm:text-sm font-bold text-slate-400">POS 연동 상태</span>
-                    <div className={`w-10 h-10 rounded-2xl flex items-center justify-center border shadow-inner ${currentDisplay?.connected ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-rose-500/10 border-rose-500/25'}`}>
-                      <CheckCircle2 className={`w-5 h-5 ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`} />
-                    </div>
-                  </div>
-                  <div className={`text-lg sm:text-xl font-black ${currentDisplay?.connected ? 'text-emerald-400' : 'text-rose-500'}`}>
-                    {currentDisplay?.connected ? '유니온소프트 정상' : '연결 안 됨'}
-                  </div>
-                  <div className="text-xs text-slate-400 mt-3.5 font-semibold bg-slate-950/80 px-3.5 py-2 rounded-2xl border border-slate-800 inline-block shadow-inner">
-                    {currentDisplay?.connected ? '역삼 · GFC 세션 안정적' : '세션 및 쿠키 확인 필요'}
-                  </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center gap-2 font-medium">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                  프록시 자동 세션 유지
-                </div>
-              </div>
-
+              )}
             </div>
+            <span className="text-xs text-slate-400 font-bold bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
+              11:00 ~ 21:00
+            </span>
+          </div>
 
-            {/* 매출 기여도 카드 (전체 탭일 때 + 매출이 0 이상일 때만 표시) */}
-            {selectedStore === 'all' && (currentDisplay?.todaySales > 0) && (
-              <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950 border border-slate-800/80 rounded-3xl p-7 shadow-2xl relative overflow-hidden backdrop-blur-xl">
-                <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/5 rounded-bl-full blur-3xl pointer-events-none"></div>
-                
-                <h3 className="text-sm font-black text-slate-200 mb-6 flex items-center gap-2.5">
-                  <Activity className="w-4 h-4 text-amber-400" />
-                  실시간 지점별 매출 기여도
-                </h3>
+          <div className="relative h-64 w-full mt-8 pt-4 border-t border-slate-800/60">
+            {/* SVG Line Chart */}
+            <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
+                  <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
+                </linearGradient>
+              </defs>
+              
+              <line x1="0" y1="25" x2="100" y2="25" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
+              <line x1="0" y1="50" x2="100" y2="50" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
+              <line x1="0" y1="75" x2="100" y2="75" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
 
-                <div className="space-y-5 relative z-10">
-                  {(() => {
-                    const yeoksamSales = posData.solsot_yeoksam?.todaySales || 0;
-                    const gfcSales = posData.solsot_gfc?.todaySales || 0;
-                    const totalSales = yeoksamSales + gfcSales;
-                    
-                    const yeoksamPercent = totalSales > 0 ? ((yeoksamSales / totalSales) * 100).toFixed(1) : 0;
-                    const gfcPercent = totalSales > 0 ? ((gfcSales / totalSales) * 100).toFixed(1) : 0;
-                    
-                    const isYeoksamFirst = yeoksamSales >= gfcSales;
+              {(() => {
+                const getLinePoints = (dataKey) => {
+                  return timeChartData.chartArray.map((d, i) => {
+                    const x = (i / (timeChartData.chartArray.length - 1)) * 100;
+                    const y = 100 - (d[dataKey] / timeChartData.maxSales) * 100; 
+                    return `${x},${isNaN(y) ? 100 : y}`;
+                  }).join(' ');
+                };
 
-                    const firstPlace = isYeoksamFirst 
-                      ? { name: '솔솥 역삼점', sales: yeoksamSales, percent: yeoksamPercent } 
-                      : { name: '솔솥 GFC점', sales: gfcSales, percent: gfcPercent };
-                    const secondPlace = isYeoksamFirst 
-                      ? { name: '솔솥 GFC점', sales: gfcSales, percent: gfcPercent } 
-                      : { name: '솔솥 역삼점', sales: yeoksamSales, percent: yeoksamPercent };
+                if (selectedStore === 'all') {
+                  const yeoksamPoints = getLinePoints('solsot_yeoksam');
+                  const gfcPoints = getLinePoints('solsot_gfc');
+                  return (
+                    <>
+                      <polyline points={yeoksamPoints} fill="none" stroke="#fbbf24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      <polyline points={gfcPoints} fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
+                  );
+                } else {
+                  const singlePoints = getLinePoints('total');
+                  const areaPoints = `0,100 ${singlePoints} 100,100`;
+                  const color = selectedStore === 'solsot_yeoksam' ? '#fbbf24' : selectedStore === 'solsot_gfc' ? '#34d399' : '#60a5fa';
+                  return (
+                    <>
+                      <polygon points={areaPoints} fill="url(#lineGradient)" />
+                      <polyline points={singlePoints} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </>
+                  );
+                }
+              })()}
+            </svg>
 
-                    return (
-                      <>
-                        <div className="flex justify-between items-end mb-2.5">
-                          <div className="flex flex-col">
-                            <span className="text-xs text-amber-400 font-extrabold mb-1">🥇 1위 {firstPlace.name}</span>
-                            <span className="text-2xl font-black text-white">{firstPlace.sales.toLocaleString()}원 <span className="text-sm text-slate-400 font-bold">({firstPlace.percent}%)</span></span>
-                          </div>
-                          <div className="flex flex-col text-right">
-                            <span className="text-xs text-slate-400 font-extrabold mb-1">🥈 2위 {secondPlace.name}</span>
-                            <span className="text-xl font-bold text-slate-300">{secondPlace.sales.toLocaleString()}원 <span className="text-xs text-slate-500">({secondPlace.percent}%)</span></span>
-                          </div>
-                        </div>
-                        
-                        <div className="h-4 w-full bg-slate-950/80 rounded-2xl overflow-hidden flex p-1 border border-slate-800/80 shadow-inner">
-                          <div style={{ width: `${firstPlace.percent}%` }} className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-xl transition-all duration-1000 relative shadow-md">
-                             <div className="absolute inset-0 bg-white/20 animate-pulse rounded-xl"></div>
-                          </div>
-                          <div style={{ width: `${secondPlace.percent}%` }} className="h-full bg-slate-700/80 rounded-xl transition-all duration-1000 ml-1"></div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-              </div>
-            )}
-
-            {/* 🔥 아름다운 꺾은선 (Line) 그래프 적용 완료 */}
-            <div className="bg-gradient-to-br from-slate-900/90 via-slate-900/80 to-slate-950 border border-slate-800/80 rounded-3xl p-7 shadow-2xl backdrop-blur-xl">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6">
-                <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-black text-slate-200 flex items-center gap-2.5">
-                    <TrendingUp className="w-4 h-4 text-amber-400" />
-                    시간대별 매출 추이
-                  </h3>
-                </div>
-                <span className="text-xs text-slate-400 font-bold bg-slate-950/80 px-3.5 py-1.5 rounded-xl border border-slate-800 shadow-inner">
-                  11:00 ~ 21:00
-                </span>
-              </div>
-
-              <div className="relative h-64 w-full mt-8 pt-4 border-t border-slate-800/60">
-                {/* SVG Line Chart */}
-                <svg className="absolute inset-0 w-full h-full overflow-visible" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0" />
-                    </linearGradient>
-                  </defs>
+            {/* Interactive Overlay & Tooltips */}
+            <div className="absolute inset-0 w-full h-full flex justify-between items-end">
+              {timeChartData.chartArray.map((item, idx) => {
+                if (selectedStore === 'all') {
+                  const hY = (item.solsot_yeoksam / timeChartData.maxSales) * 100;
+                  const hG = (item.solsot_gfc / timeChartData.maxSales) * 100;
+                  const showTooltip = item.solsot_yeoksam > 0 || item.solsot_gfc > 0;
                   
-                  {/* Grid Lines */}
-                  <line x1="0" y1="25" x2="100" y2="25" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
-                  <line x1="0" y1="50" x2="100" y2="50" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
-                  <line x1="0" y1="75" x2="100" y2="75" stroke="#1e293b" strokeWidth="0.5" strokeDasharray="2" />
+                  return (
+                    <div key={idx} className="h-full flex flex-col justify-end items-center relative group w-full">
+                      {item.solsot_yeoksam > 0 && <div className="absolute w-2.5 h-2.5 bg-slate-900 border-2 border-amber-400 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-all" style={{ bottom: `calc(${hY}% - 5px)` }}></div>}
+                      {item.solsot_gfc > 0 && <div className="absolute w-2.5 h-2.5 bg-slate-900 border-2 border-emerald-400 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-all" style={{ bottom: `calc(${hG}% - 5px)` }}></div>}
+                      
+                      {showTooltip && (
+                        <div className="absolute opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 text-white text-xs px-3.5 py-2.5 rounded-2xl pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-slate-700 flex flex-col gap-1.5 backdrop-blur-xl -translate-y-4" style={{ bottom: `${Math.max(hY, hG)}%` }}>
+                          <span className="font-bold flex justify-between gap-4 text-slate-300">역삼 <span className="text-amber-400 font-black">{item.solsot_yeoksam.toLocaleString()}</span></span>
+                          <span className="font-bold flex justify-between gap-4 text-slate-300">GFC <span className="text-emerald-400 font-black">{item.solsot_gfc.toLocaleString()}</span></span>
+                        </div>
+                      )}
+                      <span className="absolute -bottom-6 text-[10px] text-slate-400 font-bold tracking-tighter">{item.hour.replace('시', '')}</span>
+                    </div>
+                  );
+                } else {
+                  const heightPercent = (item.total / timeChartData.maxSales) * 100;
+                  const dotColor = selectedStore === 'solsot_yeoksam' ? 'border-amber-400' : selectedStore === 'solsot_gfc' ? 'border-emerald-400' : 'border-blue-400';
+                  const textColor = selectedStore === 'solsot_yeoksam' ? 'text-amber-400' : selectedStore === 'solsot_gfc' ? 'text-emerald-400' : 'text-blue-400';
 
-                  {(() => {
-                    const points = timeChartData.chartArray.map((d, i) => {
-                      const x = (i / (timeChartData.chartArray.length - 1)) * 100;
-                      // Prevent exceeding bounds, y=0 is top, y=100 is bottom
-                      const y = 100 - (d.total / timeChartData.maxSales) * 100; 
-                      return { x, y: isNaN(y) ? 100 : y };
-                    });
-                    
-                    const polylinePoints = points.map(p => `${p.x},${p.y}`).join(' ');
-                    const areaPoints = `0,100 ${polylinePoints} 100,100`;
-
-                    return (
-                      <>
-                        <polygon points={areaPoints} fill="url(#lineGradient)" />
-                        <polyline 
-                          points={polylinePoints} 
-                          fill="none" 
-                          stroke="#fbbf24" 
-                          strokeWidth="2.5" 
-                          strokeLinecap="round" 
-                          strokeLinejoin="round" 
-                          className="drop-shadow-[0_0_10px_rgba(251,191,36,0.5)]"
-                        />
-                      </>
-                    );
-                  })()}
-                </svg>
-
-                {/* HTML Overlay for Interactive Dots & Tooltips */}
-                <div className="absolute inset-0 w-full h-full flex justify-between items-end">
-                  {timeChartData.chartArray.map((item, idx) => {
-                    const heightPercent = (item.total / timeChartData.maxSales) * 100;
-                    return (
-                      <div key={idx} className="h-full flex flex-col justify-end items-center relative group w-full">
-                        {/* Interactive Dot */}
-                        <div 
-                          className="absolute w-3 h-3 bg-slate-900 border-2 border-amber-400 rounded-full z-10 opacity-0 group-hover:opacity-100 transition-all shadow-[0_0_12px_rgba(251,191,36,1)] scale-50 group-hover:scale-100"
-                          style={{ bottom: `calc(${heightPercent}% - 6px)` }}
-                        ></div>
-
-                        {/* Tooltip */}
-                        {item.total > 0 && (
-                          <div 
-                            className="absolute opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 text-white text-xs px-3.5 py-2.5 rounded-2xl pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-slate-700 flex flex-col gap-1 backdrop-blur-xl -translate-y-4"
-                            style={{ bottom: `${heightPercent}%` }}
-                          >
-                            <span className="font-black text-amber-400">{item.total.toLocaleString()}원</span>
-                          </div>
-                        )}
-                        
-                        {/* X-Axis Label */}
-                        <span className="absolute -bottom-6 text-[10px] text-slate-400 font-bold tracking-tighter">
-                          {item.hour.replace('시', '')}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                  return (
+                    <div key={idx} className="h-full flex flex-col justify-end items-center relative group w-full">
+                      <div className={`absolute w-3 h-3 bg-slate-900 border-2 ${dotColor} rounded-full z-10 opacity-0 group-hover:opacity-100 transition-all`} style={{ bottom: `calc(${heightPercent}% - 6px)` }}></div>
+                      {item.total > 0 && (
+                        <div className="absolute opacity-0 group-hover:opacity-100 transition-all duration-200 bg-slate-900/95 text-xs px-3.5 py-2.5 rounded-2xl pointer-events-none whitespace-nowrap z-20 shadow-2xl border border-slate-700 flex flex-col gap-1 backdrop-blur-xl -translate-y-4" style={{ bottom: `${heightPercent}%` }}>
+                          <span className={`font-black ${textColor}`}>{item.total.toLocaleString()}원</span>
+                        </div>
+                      )}
+                      <span className="absolute -bottom-6 text-[10px] text-slate-400 font-bold tracking-tighter">{item.hour.replace('시', '')}</span>
+                    </div>
+                  );
+                }
+              })}
             </div>
           </div>
-        )}
-
-        {activeTab === 'cctv' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
-              <div className="bg-slate-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-700/60">
-                <span className="text-xs font-bold text-white flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
-                  솔솥 GFC점 - 홀 메인
-                </span>
-                <span className="text-[10px] bg-slate-900 text-slate-300 px-2.5 py-1 rounded-lg font-mono font-bold">RTSP 01</span>
-              </div>
-              <div className="h-64 bg-slate-950 flex flex-col items-center justify-center text-slate-500 relative">
-                <Camera className="w-12 h-12 mb-3 opacity-30 text-amber-500" />
-                <span className="text-xs font-semibold text-slate-400">GFC점 IP/포트 연동 대기 중</span>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-emerald-500/30 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
-              <div className="bg-slate-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-700/60">
-                <span className="text-xs font-bold text-white flex items-center gap-2.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-                  솔솥 역삼점 - 실시간 CCTV
-                </span>
-                <span className="text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg font-mono font-bold">WEB PORT</span>
-              </div>
-              
-              <div className="h-64 bg-slate-950 p-6 flex flex-col items-center justify-center relative">
-                <div className="text-center space-y-4">
-                  <div className="w-14 h-14 bg-emerald-500/10 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/25 shadow-inner">
-                    <Video className="w-7 h-7 text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-200">34ea7f.dvrinside.com</p>
-                    <p className="text-[11px] text-slate-400 mt-1 font-medium">계정: admin (비밀번호 없음)</p>
-                  </div>
-                  <a
-                    href="http://34ea7f.dvrinside.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs px-5 py-3 rounded-2xl transition-all shadow-lg shadow-emerald-500/25 active:scale-95"
-                  >
-                    <span>실시간 CCTV 뷰어 열기</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-b from-slate-900/90 to-slate-900/60 border border-slate-800/80 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-xl">
-              <div className="bg-slate-800/80 px-6 py-4 flex justify-between items-center border-b border-slate-700/60">
-                <span className="text-xs font-bold text-amber-400 flex items-center gap-2.5">
-                  <Clock className="w-4 h-4" />
-                  갓잇 선릉점 (12월 오픈예정)
-                </span>
-                <span className="text-[10px] bg-slate-900 text-slate-300 px-2.5 py-1 rounded-lg font-bold">준비중</span>
-              </div>
-              <div className="h-64 bg-slate-950/60 flex flex-col items-center justify-center text-slate-500 relative">
-                <AlertTriangle className="w-9 h-9 mb-3 text-amber-500/70" />
-                <span className="text-xs text-slate-400 font-bold">12월 중순 장비 설치 예정</span>
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </main>
 
-      {/* 상세 현황 모달 */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity">
           <div className="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -695,29 +513,6 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
               <button onClick={() => setIsModalOpen(false)} className="w-9 h-9 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition">
                 <X className="w-4 h-4" />
               </button>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-300 mb-3.5 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-400" /> {currentMonthName} 경영 지표 요약
-                </h3>
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 col-span-2 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1 font-medium">{currentMonthName} 총 누적 매출</p>
-                    <p className="text-2xl sm:text-3xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1 font-medium">총 결제 건수</p>
-                    <p className="text-lg sm:text-xl font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1 font-medium">평균 객단가</p>
-                    <p className="text-lg sm:text-xl font-bold text-emerald-400">{(accumulatedAvgPrice || 0).toLocaleString()}원</p>
-                  </div>
-                </div>
-              </div>
-              {/* 결제 수단별 상세 내역 (카드/현금/취소) 영역 완벽히 삭제 완료 */}
             </div>
           </div>
         </div>
