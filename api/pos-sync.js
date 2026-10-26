@@ -71,16 +71,21 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 2. 💡 7일 전 매출 파싱 (MONTH 객체의 UnitAmt와 SellCnt를 조합하여 계산)
+      // 2. 💡 7일 전 매출 파싱 (ONEDAY, MONTH 등 모든 가능성 조합)
       const prevOneday = prevData.ONEDAY || {};
       const prevMonth = prevData.MONTH || {};
       
-      const prevCount = parseInt(prevOneday.SellCnt || prevMonth.SellCnt || 0, 10);
-      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || prevMonth.UnitAmt || 0);
-      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || prevMonth.TotAmt || prevMonth.ReceiveAmt || 0, 10);
-      
-      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) {
-        prevWeekSales = Math.round(prevUnitAmt * prevCount);
+      let prevWeekSales = parseInt(
+        prevOneday.TotAmt || prevOneday.ReceiveAmt || 
+        prevMonth.TotAmt || prevMonth.ReceiveAmt || 0, 10
+      );
+
+      if (prevWeekSales === 0) {
+        const pCnt = parseInt(prevOneday.SellCnt || prevMonth.SellCnt || 0, 10);
+        const pUnit = parseFloat(prevOneday.UnitAmt || prevMonth.UnitAmt || 0);
+        if (pCnt > 0 && pUnit > 0) {
+          prevWeekSales = Math.round(pUnit * pCnt);
+        }
       }
 
       // 3. 이번 달 누적 매출 파싱
