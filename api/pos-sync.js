@@ -62,7 +62,7 @@ export default async function handler(req, res) {
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
-      let todaySales = parseInt(oneday.TotAmt || min(oneday.ReceiveAmt || 0), 10);
+      let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
         todaySales = Math.round(unitAmt * totalCount);
       }
@@ -109,7 +109,7 @@ export default async function handler(req, res) {
     }
   }
 
-  // Vercel 환경 변수에서 쿠키 가져오기 (원래 쓰시던 방식)
+  // Vercel 환경 변수에서 쿠키 가져오기
   const yeoksamCookie = process.env.YEOKSAM_COOKIE;
   const gfcCookie = process.env.GFC_COOKIE;
 
