@@ -6,10 +6,60 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: "Method not allowed" });
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
+  const LOGIN_URL = "https://asp.unionpos.co.kr/loginCheck.do";
 
-  async function fetchStoreDataWithCookie(storeName, cookieValue) {
+  // 1. 자동 로그인을 수행하고 새 쿠키(JSESSIONID)를 발급받는 함수
+  async function getNewCookie(id, pw) {
+    if (!id || !pw) return null;
+    
     try {
-      if (!cookieValue) return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
+      const bodyData = new URLSearchParams({
+        emp_no: id,
+        emp_pwd: pw,
+        LEVEL: "0"
+      }).toString();
+
+      const loginRes = await fetch(LOGIN_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+          "User-Agent": "Mozilla/5.0"
+        },
+        body: bodyData,
+        redirect: "manual" // 리다이렉트 되기 전의 쿠키를 가로채기 위함
+      });
+
+      // 서버가 응답한 헤더에서 set-cookie 추출
+      const setCookieHeader = loginRes.headers.get("set-cookie");
+      if (setCookieHeader) {
+        const match = setCookieHeader.match(/JSESSIONID=([^;]+)/);
+        if (match) {
+          return match[1]; // 추출된 새 JSESSIONID 반환
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error(`로그인 요청 에러 (ID: ${id}):`, err);
+      return null;
+    }
+  }
+
+  // 2. 발급받은 쿠키로 데이터를 가져오는 메인 함수
+  async function fetchStoreData(storeName, credentials) {
+    const emptyResult = { 
+      connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
+      monthSales: 0, monthCount: 0, prevWeekSales: 0, 
+      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} 
+    };
+
+    try {
+      // 매번 통신할 때마다 새 쿠키 발급 (세션 만료 원천 차단)
+      const freshCookie = await getNewCookie(credentials.id, credentials.pw);
+      
+      if (!freshCookie) {
+        console.error(`[${storeName}] 새 쿠키 발급 실패. 아이디/비밀번호를 확인하세요.`);
+        return emptyResult;
+      }
 
       const now = new Date();
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
@@ -23,10 +73,8 @@ export default async function handler(req, res) {
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
           headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
+            "Cookie": `JSESSIONID=${freshCookie}`,
             "User-Agent": "Mozilla/5.0",
-            "Referer": "https://asp.unionpos.co.kr/",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
           body: `sch_date=${todayStr}`
@@ -34,7 +82,7 @@ export default async function handler(req, res) {
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
           headers: {
-            "Cookie": `JSESSIONID=${cookieValue}`,
+            "Cookie": `JSESSIONID=${freshCookie}`,
             "User-Agent": "Mozilla/5.0",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
@@ -47,10 +95,12 @@ export default async function handler(req, res) {
 
       let data = {};
       let prevData = {};
-      try { data = JSON.parse(textData); } catch (e) { data = {}; }
+      
+      try { data = JSON.parse(textData); } catch (e) { return emptyResult; }
       try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
-      // 당일 데이터 파싱
+      if (!data || Object.keys(data).length === 0) return emptyResult;
+
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -60,7 +110,6 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 전주 동요일 데이터 파싱
       const prevOneday = prevData.ONEDAY || {};
       let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
       const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
@@ -69,7 +118,6 @@ export default async function handler(req, res) {
         prevWeekSales = Math.round(prevUnitAmt * prevCount);
       }
 
-      // 월별 데이터 파싱 (정상 작동하던 구조 복구)
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -78,7 +126,6 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 🔥 시간대별 데이터 안전 추출 로직
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
@@ -90,12 +137,7 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales, 
-        totalCount, 
-        avgPrice, 
-        prevWeekSales, 
-        monthSales, 
-        monthCount,
+        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
@@ -105,17 +147,20 @@ export default async function handler(req, res) {
       };
 
     } catch (err) {
-      return { connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} };
+      return emptyResult;
     }
   }
 
-  const yeoksamCookie = process.env.YEOKSAM_COOKIE;
-  const gfcCookie = process.env.GFC_COOKIE;
+  // 💡 사장님이 설정하신 새로운 환경 변수명으로 매핑 완료!
+  const credentials = {
+    yeoksam: { id: process.env.YEOKSAM_POS_ID, pw: process.env.YEOKSAM_POS_PW },
+    gfc: { id: process.env.GFC_POS_ID, pw: process.env.GFC_POS_PW }
+  };
 
   try {
     const [yeoksamData, gfcData] = await Promise.all([
-      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
-      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
+      fetchStoreData("솔솥 역삼점", credentials.yeoksam),
+      fetchStoreData("솔솥 GFC점", credentials.gfc)
     ]);
 
     return res.status(200).json({
