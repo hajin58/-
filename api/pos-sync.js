@@ -10,16 +10,16 @@ export default async function handler(req, res) {
   async function fetchStoreDataWithCookie(storeName, cookieValue) {
     const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
-      monthSales: 0, monthCount: 0, prevWeekSales: 0, 
-      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} 
+      monthSales: 0, monthCount: 0, prevWeekSales: 0 
     };
 
     try {
       if (!cookieValue) return emptyResult;
 
+      // 한국 시간 KST 기준 오늘 날짜 계산 (YYYY-MM-DD)
       const now = new Date();
-      const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
-      const todayStr = kst.toISOString().split('T')[0]; 
+      const kstTime = new Date(now.getTime() + (9 * 60 * 60 * 1000));
+      const todayStr = kstTime.toISOString().split('T')[0]; 
 
       const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
         method: "POST",
@@ -39,37 +39,23 @@ export default async function handler(req, res) {
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
-      // 1. 오늘 매출 및 결제수단 상세 파싱
+      // 1. 오늘 매출 파싱
       const oneday = data.ONEDAY || {};
-      const totalCount = parseInt(oneday.SellCnt || 0, 10);
-      const unitAmt = parseFloat(oneday.UnitAmt || 0);
-      let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
+      const totalCount = parseInt(oneday.SellCnt || oneday.sell_cnt || 0, 10);
+      const unitAmt = parseFloat(oneday.UnitAmt || oneday.unit_amt || 0);
+      let todaySales = parseInt(oneday.TotAmt || oneday.TotSaleAmt || oneday.ReceiveAmt || 0, 10);
+      
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) {
         todaySales = Math.round(unitAmt * totalCount);
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 취소 금액 탐색
-      let cancelAmt = 0;
-      for (const key of Object.keys(oneday)) {
-        const lowerKey = key.toLowerCase();
-        if (lowerKey.includes('cancel') || lowerKey.includes('can') || lowerKey.includes('cnl') || lowerKey.includes('dc')) {
-          const val = parseInt(oneday[key], 10);
-          if (!isNaN(val) && val > 0 && val < todaySales) {
-            cancelAmt = val;
-            break;
-          }
-        }
-      }
-      if (storeName === "솔솥 GFC점" && cancelAmt === 0) {
-        cancelAmt = 15000;
-      }
-
       // 2. 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
-      const monthCount = parseInt(month.SellCnt || 0, 10);
-      const monthUnitAmt = parseFloat(month.UnitAmt || 0);
-      let monthSales = parseInt(month.TotAmt || month.ReceiveAmt || 0, 10);
+      const monthCount = parseInt(month.SellCnt || month.sell_cnt || 0, 10);
+      const monthUnitAmt = parseFloat(month.UnitAmt || month.unit_amt || 0);
+      let monthSales = parseInt(month.TotAmt || month.TotSaleAmt || month.ReceiveAmt || 0, 10);
+      
       if (monthSales === 0 && monthUnitAmt > 0 && monthCount > 0) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
@@ -81,13 +67,7 @@ export default async function handler(req, res) {
         avgPrice, 
         prevWeekSales: 0, 
         monthSales, 
-        monthCount,
-        details: {
-          cardAmt: parseInt(oneday.CardAmt || oneday.CrdAmt || 0, 10),
-          cashAmt: parseInt(oneday.CashAmt || oneday.CshAmt || 0, 10),
-          cancelAmt: cancelAmt
-        },
-        TIME: {}
+        monthCount
       };
 
     } catch (err) {
@@ -110,7 +90,7 @@ export default async function handler(req, res) {
       stores: {
         solsot_gfc: { name: "솔솥 GFC점", ...gfcData },
         solsot_yeoksam: { name: "솔솥 역삼점", ...yeoksamData },
-        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} }
+        goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 }
       }
     });
   } catch (error) {
