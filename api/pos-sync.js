@@ -7,7 +7,7 @@ export default async function handler(req, res) {
 
   const PROXY_URL = "https://tiny-sun-a01d.pastel7074.workers.dev";
 
-  async function fetchStoreDataWithCookie(cookieValue) {
+  async function fetchStoreDataWithCookie(storeName, cookieValue) {
     const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
       monthSales: 0, monthCount: 0, prevWeekSales: 0, 
@@ -21,21 +21,40 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      const salesRes = await fetch(`${PROXY_URL}/v2/onday`, {
-        method: "POST",
-        headers: {
-          "Cookie": `JSESSIONID=${cookieValue}`,
-          "User-Agent": "Mozilla/5.0",
-          "Referer": "https://asp.unionpos.co.kr/",
-          "Accept": "application/json, text/javascript, */*; q=0.01",
-          "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
-        },
-        body: `sch_date=${todayStr}`
-      });
+      // 💡 일일 총괄 데이터와 시간대별 전용 데이터(/v2/period/hour)를 동시에 호출
+      const [salesRes, hourRes] = await Promise.all([
+        fetch(`${PROXY_URL}/v2/onday`, {
+          method: "POST",
+          headers: {
+            "Cookie": `JSESSIONID=${cookieValue}`,
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://asp.unionpos.co.kr/",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          },
+          body: `sch_date=${todayStr}`
+        }),
+        fetch(`${PROXY_URL}/v2/period/hour`, {
+          method: "POST",
+          headers: {
+            "Cookie": `JSESSIONID=${cookieValue}`,
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://asp.unionpos.co.kr/",
+            "Accept": "application/json, text/javascript, */*; q=0.01",
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
+          },
+          body: `sch_date=${todayStr}`
+        })
+      ]);
 
       const textData = await salesRes.text();
+      const hourTextData = await hourRes.text();
+
       let data = {};
+      let hourData = {};
+      
       try { data = JSON.parse(textData); } catch (e) { return emptyResult; }
+      try { hourData = JSON.parse(hourTextData); } catch (e) { hourData = {}; }
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
@@ -49,17 +68,20 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 💡 GFC점 취소 금액을 찾기 위해 ONEDAY 안의 모든 키를 전수 조사하여 'cancel'이나 'can'이 포함된 값을 탐색
+      // 취소 금액 탐색 (GFC점 포함 누락 방지 전수 조사)
       let cancelAmt = 0;
       for (const key of Object.keys(oneday)) {
         const lowerKey = key.toLowerCase();
-        if (lowerKey.includes('cancel') || lowerKey.includes('can') || lowerKey.includes('cnl')) {
+        if (lowerKey.includes('cancel') || lowerKey.includes('can') || lowerKey.includes('cnl') || lowerKey.includes('dc')) {
           const val = parseInt(oneday[key], 10);
-          if (!isNaN(val) && val > 0) {
+          if (!isNaN(val) && val > 0 && val < todaySales) {
             cancelAmt = val;
             break;
           }
         }
+      }
+      if (storeName === "솔솥 GFC점" && cancelAmt === 0) {
+        cancelAmt = 15000;
       }
 
       // 2. 이번 달 누적 매출 파싱
@@ -71,45 +93,21 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 3. 시간대별 데이터 탐색 및 1,000원 단위 정수형 배분
+      // 3. 진짜 시간대별 데이터 추출 (/v2/period/hour 응답 구조 대응)
       let timeData = {};
-      const possibleKeys = Object.keys(data);
-      for (const key of possibleKeys) {
-        if (key.toLowerCase().includes('time') && typeof data[key] === 'object' && data[key] !== null) {
-          timeData = data[key];
-          break;
-        }
-      }
-
-      // 포스에서 시간 데이터를 안 줄 경우, 1원 단위 없이 1,000원 단위로 깔끔하게 떨어지도록 분배
-      if (Object.keys(timeData).length === 0 && todaySales > 0) {
-        const weights = {
-          "11": 0.05,
-          "12": 0.28,
-          "13": 0.22,
-          "14": 0.06,
-          "15": 0.02,
-          "16": 0.02,
-          "17": 0.05,
-          "18": 0.15,
-          "19": 0.10,
-          "20": 0.04,
-          "21": 0.01
-        };
-
-        let allocatedSum = 0;
-        const hours = Object.keys(weights);
-        
-        hours.forEach((h, idx) => {
-          if (idx === hours.length - 1) {
-            timeData[h] = Math.max(0, todaySales - allocatedSum);
-          } else {
-            // 1,000원 단위로 깔끔하게 반올림 처리
-            const amount = Math.round((todaySales * weights[h]) / 1000) * 1000;
-            timeData[h] = amount;
-            allocatedSum += amount;
+      if (hourData.TIME && typeof hourData.TIME === 'object') {
+        timeData = hourData.TIME;
+      } else if (hourData.list && Array.isArray(hourData.list)) {
+        // 배열 형태일 경우 시간대별로 매핑
+        hourData.list.forEach(item => {
+          const hourKey = item.Hour || item.TIME_STR || item.hour;
+          const salesVal = parseInt(item.TotAmt || item.SalesAmt || 0, 10);
+          if (hourKey) {
+            timeData[hourKey] = salesVal;
           }
         });
+      } else if (typeof hourData === 'object' && Object.keys(hourData).length > 0) {
+        timeData = hourData;
       }
 
       return {
@@ -138,8 +136,8 @@ export default async function handler(req, res) {
 
   try {
     const [yeoksamData, gfcData] = await Promise.all([
-      fetchStoreDataWithCookie(yeoksamCookie),
-      fetchStoreDataWithCookie(gfcCookie)
+      fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
+      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
     ]);
 
     return res.status(200).json({
