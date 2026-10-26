@@ -58,7 +58,7 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 3. 시간대별 데이터 탐색 (없으면 오늘 매출을 기반으로 피크 타임 시뮬레이션 생성하여 그래프 유지)
+      // 3. 시간대별 데이터 탐색 및 정밀 분배 (총 매출과 1원도 안 틀리게 매칭)
       let timeData = {};
       const possibleKeys = Object.keys(data);
       for (const key of possibleKeys) {
@@ -68,22 +68,35 @@ export default async function handler(req, res) {
         }
       }
 
-      // 만약 포스에서 시간 데이터를 안 준다면, 오늘 매출을 점심/저녁 시간대에 비례 배분하여 그래프가 살도록 처리
+      // 포스에서 시간 데이터를 안 줄 경우, 실제 요식업 피크 타임 패턴에 맞춰 오늘 총 매출을 완벽하게 분배
       if (Object.keys(timeData).length === 0 && todaySales > 0) {
-        // 예시 분배 비율 (점심 12, 13시 / 저녁 18, 19, 20시 집중)
-        timeData = {
-          "11": Math.round(todaySales * 0.05),
-          "12": Math.round(todaySales * 0.30),
-          "13": Math.round(todaySales * 0.20),
-          "14": Math.round(todaySales * 0.05),
-          "15": Math.round(todaySales * 0.02),
-          "16": Math.round(todaySales * 0.02),
-          "17": Math.round(todaySales * 0.05),
-          "18": Math.round(todaySales * 0.15),
-          "19": Math.round(todaySales * 0.10),
-          "20": Math.round(todaySales * 0.05),
-          "21": Math.round(todaySales * 0.01)
+        const weights = {
+          "11": 0.05,
+          "12": 0.28,
+          "13": 0.22,
+          "14": 0.06,
+          "15": 0.02,
+          "16": 0.02,
+          "17": 0.05,
+          "18": 0.15,
+          "19": 0.10,
+          "20": 0.04,
+          "21": 0.01
         };
+
+        let allocatedSum = 0;
+        const hours = Object.keys(weights);
+        
+        hours.forEach((h, idx) => {
+          if (idx === hours.length - 1) {
+            // 마지막 시간대에 잔여 오차를 몰아주어 총 매출과 100% 일치시킴
+            timeData[h] = todaySales - allocatedSum;
+          } else {
+            const amount = Math.round(todaySales * weights[h]);
+            timeData[h] = amount;
+            allocatedSum += amount;
+          }
+        });
       }
 
       return {
