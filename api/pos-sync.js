@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const emptyResult = { 
       connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, 
       monthSales: 0, monthCount: 0, prevWeekSales: 0, 
-      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {}, debug_prev: "" 
+      details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 }, TIME: {} 
     };
 
     try {
@@ -61,6 +61,7 @@ export default async function handler(req, res) {
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
+      // 1. 오늘 매출 파싱
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -70,15 +71,22 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 💡 7일 전 원본 데이터가 비어있는지 확인용 디버그 담기
+      // 2. 💡 전주 동요일 매출 파싱 (prevData는 응답 구조가 다를 수 있으므로 안전하게 양쪽 다 체크)
+      let prevWeekSales = 0;
       const prevOneday = prevData.ONEDAY || {};
-      const prevTotalCount = parseInt(prevOneday.SellCnt || 0, 10);
-      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
-      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
-      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevTotalCount > 0) {
-        prevWeekSales = Math.round(prevUnitAmt * prevTotalCount);
+      const prevMonthObj = prevData.MONTH || {};
+      
+      const pTot = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || prevMonthObj.TotAmt || prevMonthObj.ReceiveAmt || 0, 10);
+      const pCnt = parseInt(prevOneday.SellCnt || prevMonthObj.SellCnt || 0, 10);
+      const pUnit = parseFloat(prevOneday.UnitAmt || prevMonthObj.UnitAmt || 0);
+
+      if (pTot > 0) {
+        prevWeekSales = pTot;
+      } else if (pUnit > 0 && pCnt > 0) {
+        prevWeekSales = Math.round(pUnit * pCnt);
       }
 
+      // 3. 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -104,8 +112,7 @@ export default async function handler(req, res) {
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
           cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
         },
-        TIME: timeData,
-        debug_prev: prevTextData.substring(0, 100) // 👈 7일 전 서버 응답 원본 미리보기
+        TIME: timeData
       };
 
     } catch (err) {
