@@ -5,13 +5,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: "Method not allowed" });
 
-  // 🔥 프록시 제거! 유니온소프트 서버와 직접 안전하게 다이렉트 통신
   const BASE_URL = "https://asp.unionpos.co.kr";
   const LOGIN_URL = `${BASE_URL}/loginCheck.do`;
   const DATA_URL = `${BASE_URL}/v2/onday`;
 
   async function getNewCookie(id, pw) {
-    if (!id || !pw) return { cookie: null, error: "환경변수 누락 (Vercel 재배포 필요)" };
+    if (!id || !pw) return { cookie: null, error: "환경변수 누락" };
     
     try {
       const bodyData = new URLSearchParams({ emp_no: id, emp_pwd: pw, LEVEL: "0" }).toString();
@@ -19,11 +18,17 @@ export default async function handler(req, res) {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "User-Agent": "Mozilla/5.0"
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+          "Referer": `${BASE_URL}/`,
+          "Origin": BASE_URL
         },
         body: bodyData,
         redirect: "manual"
       });
+
+      // 로그인 응답 상태 코드 및 본문 확인용
+      const responseText = await loginRes.text();
+      console.log(`[로그인 응답] 상태코드: ${loginRes.status}, 본문:`, responseText.substring(0, 100));
 
       let cookies = [];
       if (typeof loginRes.headers.getSetCookie === 'function') {
@@ -38,7 +43,7 @@ export default async function handler(req, res) {
       
       if (match) return { cookie: match[1], error: null };
       
-      return { cookie: null, error: `쿠키 발급 거부됨 (응답코드: ${loginRes.status})` };
+      return { cookie: null, error: `로그인 거부됨 (코드: ${loginRes.status}, 내용: ${responseText.trim().substring(0, 30)})` };
     } catch (err) {
       return { cookie: null, error: `로그인 통신 에러: ${err.message}` };
     }
@@ -52,7 +57,6 @@ export default async function handler(req, res) {
     };
 
     try {
-      // 1. 매번 Vercel 서버 IP로 새로운 쿠키 발급
       const { cookie: freshCookie, error: cookieError } = await getNewCookie(credentials.id, credentials.pw);
       
       if (!freshCookie) {
@@ -67,38 +71,28 @@ export default async function handler(req, res) {
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
 
-      // 2. 발급받은 IP 그대로 다이렉트 매출 데이터 요청
-      const [salesRes, prevRes] = await Promise.all([
+      const [salesRes] = await Promise.all([
         fetch(DATA_URL, {
           method: "POST",
           headers: { 
             "Cookie": `JSESSIONID=${freshCookie}`, 
             "User-Agent": "Mozilla/5.0", 
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Referer": "https://asp.unionpos.co.kr/"
+            "Referer": `${BASE_URL}/`
           },
           body: `sch_date=${todayStr}`
-        }),
-        fetch(DATA_URL, {
-          method: "POST",
-          headers: { 
-            "Cookie": `JSESSIONID=${freshCookie}`, 
-            "User-Agent": "Mozilla/5.0", 
-            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-            "Referer": "https://asp.unionpos.co.kr/"
-          },
-          body: `sch_date=${prevWeekStr}`
         })
       ]);
 
       const textData = await salesRes.text();
-      const prevTextData = await prevRes.text();
-
       let data = {};
-      let prevData = {};
       
-      try { data = JSON.parse(textData); } catch (e) { emptyResult.debug_msg = "응답 파싱 실패 (세션 끊김)"; return emptyResult; }
-      try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
+      try { 
+        data = JSON.parse(textData); 
+      } catch (e) { 
+        emptyResult.debug_msg = `데이터 파싱 실패 (응답: ${textData.trim().substring(0, 40)})`; 
+        return emptyResult; 
+      }
 
       if (!data || Object.keys(data).length === 0) {
         emptyResult.debug_msg = "포스 서버가 빈 데이터를 줌";
@@ -111,12 +105,6 @@ export default async function handler(req, res) {
       let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) todaySales = Math.round(unitAmt * totalCount);
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
-
-      const prevOneday = prevData.ONEDAY || {};
-      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
-      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
-      const prevCount = parseInt(prevOneday.SellCnt || 0, 10);
-      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) prevWeekSales = Math.round(prevUnitAmt * prevCount);
 
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
@@ -135,11 +123,11 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
+        todaySales, totalCount, avgPrice, monthSales, monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
-          cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
+          cancelAmt: parseInt(oneday.CancelIdx || oneday.CancelAmt || 0, 10)
         },
         TIME: timeData,
         debug_msg: "성공"
