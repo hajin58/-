@@ -147,9 +147,9 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [posData, setPosData] = useState({
-    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
-    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } },
-    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0, details: { cardAmt: 0, cashAmt: 0, cancelAmt: 0 } }
+    solsot_gfc: { name: "솔솥 GFC점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 },
+    solsot_yeoksam: { name: "솔솥 역삼점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 },
+    goteat_seolleung: { name: "갓잇 선릉점", connected: false, todaySales: 0, totalCount: 0, avgPrice: 0, monthSales: 0, monthCount: 0, prevWeekSales: 0 }
   });
 
   const fetchPosData = async () => {
@@ -190,24 +190,15 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
     const totalMonthCount = (posData.solsot_gfc?.monthCount || 0) + (posData.solsot_yeoksam?.monthCount || 0);
     const totalPrevWeekSales = (posData.solsot_gfc?.prevWeekSales || 0) + (posData.solsot_yeoksam?.prevWeekSales || 0);
 
-    const totalCardAmt = (posData.solsot_gfc?.details?.cardAmt || 0) + (posData.solsot_yeoksam?.details?.cardAmt || 0);
-    const totalCashAmt = (posData.solsot_gfc?.details?.cashAmt || 0) + (posData.solsot_yeoksam?.details?.cashAmt || 0);
-    const totalCancelAmt = (posData.solsot_gfc?.details?.cancelAmt || 0) + (posData.solsot_yeoksam?.details?.cancelAmt || 0);
-
     return {
       name: "전체 매장 합산",
-      connected: posData.solsot_gfc?.connected && posData.solsot_yeoksam?.connected,
+      connected: posData.solsot_gfc?.connected || posData.solsot_yeoksam?.connected,
       todaySales: totalSales,
       totalCount: totalCount,
       avgPrice: avgPrice,
       prevWeekSales: totalPrevWeekSales,
       monthSales: totalMonthSales,
-      monthCount: totalMonthCount,
-      details: {
-        cardAmt: totalCardAmt,
-        cashAmt: totalCashAmt,
-        cancelAmt: totalCancelAmt
-      }
+      monthCount: totalMonthCount
     };
   };
 
@@ -559,56 +550,41 @@ function MainDashboardContent({ onLogout, welcomeMessage }) {
         )}
       </main>
 
-      {/* 상세 현황 모달 */}
+      {/* 🔥 대형 10월 누적 매출 리포트 모달 (카드/현금/취소 완전히 삭제 후 크기 확장) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md transition-opacity">
-          <div className="bg-slate-900 border border-slate-700/80 w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+          <div className="bg-slate-900 border border-slate-700/80 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
             <div className="flex justify-between items-center p-6 border-b border-slate-800 bg-slate-800/50">
-              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2.5">
-                <BarChart3 className="w-5 h-5 text-amber-400" />
-                {currentDisplay?.name} {currentMonthName} 매출 리포트
+              <h2 className="text-lg sm:text-xl font-black text-white flex items-center gap-2.5">
+                <BarChart3 className="w-6 h-6 text-amber-400" />
+                {currentDisplay?.name} {currentMonthName} 경영 종합 성과
               </h2>
-              <button onClick={() => setIsModalOpen(false)} className="w-9 h-9 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition">
-                <X className="w-4 h-4" />
+              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-2xl bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition">
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
-              <div>
-                <h3 className="text-xs sm:text-sm font-bold text-slate-300 mb-3.5 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-amber-400" /> {currentMonthName} 경영 지표 요약
-                </h3>
-                <div className="grid grid-cols-2 gap-3.5">
-                  <div className="bg-slate-950 p-5 rounded-2xl border border-slate-800 col-span-2 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1 font-medium">{currentMonthName} 총 누적 매출</p>
-                    <p className="text-2xl sm:text-3xl font-black text-amber-400">{(currentDisplay?.monthSales || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1 font-medium">총 결제 건수</p>
-                    <p className="text-lg sm:text-xl font-bold text-white">{(currentDisplay?.monthCount || 0).toLocaleString()}건</p>
-                  </div>
-                  <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-xs text-slate-400 mb-1 font-medium">평균 객단가</p>
-                    <p className="text-lg sm:text-xl font-bold text-emerald-400">{(accumulatedAvgPrice || 0).toLocaleString()}원</p>
-                  </div>
-                </div>
+            <div className="p-7 space-y-6">
+              <div className="bg-gradient-to-br from-amber-500/15 via-slate-950 to-slate-950 p-6 rounded-3xl border border-amber-500/30 shadow-xl">
+                <p className="text-xs sm:text-sm font-bold text-amber-400 mb-1">{currentMonthName} 총 누적 매출액</p>
+                <p className="text-3xl sm:text-4xl font-black text-white tracking-tight mt-2">
+                  {(currentDisplay?.monthSales || 0).toLocaleString()} <span className="text-lg font-bold text-slate-400">원</span>
+                </p>
               </div>
 
-              <div className="pt-2 border-t border-slate-800">
-                <h4 className="text-xs font-bold text-slate-400 mb-3.5">오늘 결제 수단별 상세 내역</h4>
-                <div className="grid grid-cols-3 gap-2.5 text-center">
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-medium">카드 결제</p>
-                    <p className="text-xs font-bold text-blue-400 mt-1.5">{(currentDisplay?.details?.cardAmt || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-medium">현금 결제</p>
-                    <p className="text-xs font-bold text-emerald-400 mt-1.5">{(currentDisplay?.details?.cashAmt || 0).toLocaleString()}원</p>
-                  </div>
-                  <div className="bg-slate-950 p-3.5 rounded-2xl border border-slate-800 shadow-inner">
-                    <p className="text-[11px] text-slate-400 font-medium">취소/환불</p>
-                    <p className="text-xs font-bold text-rose-400 mt-1.5">{(currentDisplay?.details?.cancelAmt || 0).toLocaleString()}원</p>
-                  </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-inner">
+                  <p className="text-xs font-bold text-slate-400 mb-2">총 누적 결제 건수</p>
+                  <p className="text-2xl sm:text-3xl font-black text-white">
+                    {(currentDisplay?.monthCount || 0).toLocaleString()} <span className="text-sm font-bold text-slate-400">건</span>
+                  </p>
+                </div>
+                
+                <div className="bg-slate-950 p-6 rounded-3xl border border-slate-800 shadow-inner">
+                  <p className="text-xs font-bold text-slate-400 mb-2">월 평균 객단가</p>
+                  <p className="text-2xl sm:text-3xl font-black text-emerald-400">
+                    {(accumulatedAvgPrice || 0).toLocaleString()} <span className="text-sm font-bold text-slate-400">원</span>
+                  </p>
                 </div>
               </div>
             </div>
