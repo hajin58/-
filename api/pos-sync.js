@@ -22,7 +22,7 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      // 일일 총괄 데이터와 진짜 시간대별 전용 데이터(/v2/sales/period/hour) 동시 호출
+      // 일일 총괄 데이터와 진짜 시간대별 전용 데이터 동시 호출
       const [salesRes, hourRes] = await Promise.all([
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
@@ -35,17 +35,16 @@ export default async function handler(req, res) {
           },
           body: `sch_date=${todayStr}`
         }),
-        // 🚨 드디어 찾은 진짜 시간대별 조회 주소!
-        fetch(`${PROXY_URL}/v2/sales/period/hour`, {
+        // 🔥 영상에서 확인된 진짜 API 주소: /v2/sales/period/hour/list
+        fetch(`${PROXY_URL}/v2/sales/period/hour/list`, {
           method: "POST",
           headers: {
             "Cookie": `JSESSIONID=${cookieValue}`,
             "User-Agent": "Mozilla/5.0",
-            "Referer": "https://asp.unionpos.co.kr/",
+            "Referer": "https://asp.unionpos.co.kr/v2/sales/period/hour",
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"
           },
-          // 💡 포스 화면의 검색 조건에 맞춰 body 파라미터 추가 (필요시)
           body: `sch_date=${todayStr}` 
         })
       ]);
@@ -93,10 +92,9 @@ export default async function handler(req, res) {
         monthSales = Math.round(monthUnitAmt * monthCount);
       }
 
-      // 💡 진짜 API 응답에서 시간대별 데이터 추출 로직
+      // 💡 진짜 JSON 리스트 배열 파싱
       let timeData = {};
       
-      // 영상에서 본 표 형태의 데이터를 배열로 받았을 것이라 예상하고 파싱
       if (hourData) {
          let targetList = null;
          if (Array.isArray(hourData)) targetList = hourData;
@@ -105,26 +103,15 @@ export default async function handler(req, res) {
 
          if(targetList) {
              targetList.forEach(item => {
-                // 시간 필드명 (Hour, TIME_STR, hour 등 여러 케이스 대응)
                 let hStr = String(item.Hour || item.TIME_STR || item.hour || item.TIME || item.SALE_HOUR || '');
                 const h = hStr.replace(/[^0-9]/g, '').substring(0, 2);
                 
-                // 매출 필드명 (TotAmt, SalesAmt, Amt, 실매출액 등 대응)
-                const val = parseInt(item.TotAmt || item.SalesAmt || item.Amt || item.REAL_SALE_AMT || item.SALE_AMT || 0, 10);
+                const val = parseInt(item.TotAmt || item.SalesAmt || item.Amt || item.REAL_SALE_AMT || item.SALE_AMT || item.RealAmt || 0, 10);
                 
                 if (h && h.length === 2 && !isNaN(val)) {
                     timeData[h] = val;
                 }
              });
-         } else if (typeof hourData === 'object') {
-             // 혹시 객체 형태( { "11": 10000, "12": 20000 } )로 올 경우
-             for (const k of Object.keys(hourData)) {
-                 const cleanKey = k.replace(/[^0-9]/g, '');
-                 if (cleanKey.length === 2) {
-                     const val = parseInt(hourData[k], 10);
-                     if (!isNaN(val)) timeData[cleanKey] = val;
-                 }
-             }
          }
       }
 
@@ -142,7 +129,7 @@ export default async function handler(req, res) {
           cancelAmt: cancelAmt
         },
         TIME: timeData,
-        _debugHourData: hourTextData.substring(0, 800) // 문제시 확인을 위한 디버깅 텍스트
+        _debugHourData: hourTextData.substring(0, 800)
       };
 
     } catch (err) {
