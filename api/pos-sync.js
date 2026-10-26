@@ -6,6 +6,7 @@ export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: "Method not allowed" });
 
   const BASE_URL = "https://asp.unionpos.co.kr";
+  const INDEX_URL = `${BASE_URL}/`;
   const LOGIN_URL = `${BASE_URL}/loginCheck.do`;
   const DATA_URL = `${BASE_URL}/v2/onday`;
 
@@ -13,22 +14,35 @@ export default async function handler(req, res) {
     if (!id || !pw) return { cookie: null, error: "환경변수 누락" };
     
     try {
+      // 1단계: 메인 페이지를 먼저 방문하여 초기 세션(JSESSIONID) 쿠키 획득
+      const indexRes = await fetch(INDEX_URL, {
+        method: "GET",
+        headers: { "User-Agent": "Mozilla/5.0" }
+      });
+
+      let initialCookies = [];
+      if (typeof indexRes.headers.getSetCookie === 'function') {
+        initialCookies = indexRes.headers.getSetCookie();
+      } else {
+        const raw = indexRes.headers.get("set-cookie");
+        if (raw) initialCookies = [raw];
+      }
+      const initialCookieStr = initialCookies.join("; ");
+
+      // 2단계: 획득한 초기 세션을 유지한 채로 로그인 요청 전송
       const bodyData = new URLSearchParams({ emp_no: id, emp_pwd: pw, LEVEL: "0" }).toString();
       const loginRes = await fetch(LOGIN_URL, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          "Referer": `${BASE_URL}/`,
+          "User-Agent": "Mozilla/5.0",
+          "Cookie": initialCookieStr,
+          "Referer": INDEX_URL,
           "Origin": BASE_URL
         },
         body: bodyData,
         redirect: "manual"
       });
-
-      // 로그인 응답 상태 코드 및 본문 확인용
-      const responseText = await loginRes.text();
-      console.log(`[로그인 응답] 상태코드: ${loginRes.status}, 본문:`, responseText.substring(0, 100));
 
       let cookies = [];
       if (typeof loginRes.headers.getSetCookie === 'function') {
@@ -38,12 +52,13 @@ export default async function handler(req, res) {
         if (raw) cookies = [raw];
       }
 
-      const combinedCookies = cookies.join("; ");
+      // 만약 로그인 응답에 새 쿠키가 없으면 초기 쿠키 사용
+      const combinedCookies = [...initialCookies, ...cookies].join("; ");
       const match = combinedCookies.match(/JSESSIONID=([^;]+)/);
       
       if (match) return { cookie: match[1], error: null };
       
-      return { cookie: null, error: `로그인 거부됨 (코드: ${loginRes.status}, 내용: ${responseText.trim().substring(0, 30)})` };
+      return { cookie: null, error: `로그인 세션 생성 실패 (코드: ${loginRes.status})` };
     } catch (err) {
       return { cookie: null, error: `로그인 통신 에러: ${err.message}` };
     }
@@ -71,7 +86,7 @@ export default async function handler(req, res) {
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
 
-      const [salesRes] = await Promise.all([
+      const [salesRes, prevRes] = await Promise.all([
         fetch(DATA_URL, {
           method: "POST",
           headers: { 
@@ -81,18 +96,32 @@ export default async function handler(req, res) {
             "Referer": `${BASE_URL}/`
           },
           body: `sch_date=${todayStr}`
+        }),
+        fetch(DATA_URL, {
+          method: "POST",
+          headers: { 
+            "Cookie": `JSESSIONID=${freshCookie}`, 
+            "User-Agent": "Mozilla/5.0", 
+            "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            "Referer": `${BASE_URL}/`
+          },
+          body: `sch_date=${prevWeekStr}`
         })
       ]);
 
       const textData = await salesRes.text();
+      const prevTextData = await prevRes.text();
+
       let data = {};
+      let prevData = {};
       
       try { 
         data = JSON.parse(textData); 
       } catch (e) { 
-        emptyResult.debug_msg = `데이터 파싱 실패 (응답: ${textData.trim().substring(0, 40)})`; 
+        emptyResult.debug_msg = `데이터 파싱 실패 (HTML 응답 수신됨)`; 
         return emptyResult; 
       }
+      try { prevData = JSON.parse(prevTextData); } catch (e) { prevData = {}; }
 
       if (!data || Object.keys(data).length === 0) {
         emptyResult.debug_msg = "포스 서버가 빈 데이터를 줌";
@@ -105,6 +134,12 @@ export default async function handler(req, res) {
       let todaySales = parseInt(oneday.TotAmt || oneday.ReceiveAmt || 0, 10);
       if (todaySales === 0 && unitAmt > 0 && totalCount > 0) todaySales = Math.round(unitAmt * totalCount);
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
+
+      const prevOneday = prevData.ONEDAY || {};
+      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
+      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
+      const prevCount = parseInt(prevOneday.SellCnt || 0, 10);
+      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) prevWeekSales = Math.round(prevUnitAmt * prevCount);
 
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
@@ -123,11 +158,11 @@ export default async function handler(req, res) {
 
       return {
         connected: true,
-        todaySales, totalCount, avgPrice, monthSales, monthCount,
+        todaySales, totalCount, avgPrice, prevWeekSales, monthSales, monthCount,
         details: {
           cardAmt: parseInt(oneday.CardAmt || 0, 10),
           cashAmt: parseInt(oneday.CashAmt || 0, 10),
-          cancelAmt: parseInt(oneday.CancelIdx || oneday.CancelAmt || 0, 10)
+          cancelAmt: parseInt(oneday.CancelAmt || 0, 10)
         },
         TIME: timeData,
         debug_msg: "성공"
