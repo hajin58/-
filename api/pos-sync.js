@@ -21,7 +21,6 @@ export default async function handler(req, res) {
       const kst = new Date(now.getTime() + (9 * 60 * 60 * 1000));
       const todayStr = kst.toISOString().split('T')[0]; 
 
-      // 💡 전주 동요일 날짜 계산 (확실하게 7일 전)
       const prevWeekDate = new Date(kst);
       prevWeekDate.setDate(prevWeekDate.getDate() - 7);
       const prevWeekStr = prevWeekDate.toISOString().split('T')[0];
@@ -62,7 +61,6 @@ export default async function handler(req, res) {
 
       if (!data || Object.keys(data).length === 0) return emptyResult;
 
-      // 오늘 매출 파싱
       const oneday = data.ONEDAY || {};
       const totalCount = parseInt(oneday.SellCnt || 0, 10);
       const unitAmt = parseFloat(oneday.UnitAmt || 0);
@@ -72,16 +70,14 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 💡 전주 동요일 매출 파싱 로직 강화
       const prevOneday = prevData.ONEDAY || {};
-      const prevTotalCount = parseInt(prevOneday.SellCnt || 0, 10);
-      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
       let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || 0, 10);
-      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevTotalCount > 0) {
-        prevWeekSales = Math.round(prevUnitAmt * prevTotalCount);
+      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || 0);
+      const prevCount = parseInt(prevOneday.SellCnt || 0, 10);
+      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) {
+        prevWeekSales = Math.round(prevUnitAmt * prevCount);
       }
 
-      // 이번 달 누적 매출 파싱
       const month = data.MONTH || {};
       const monthCount = parseInt(month.SellCnt || 0, 10);
       const monthUnitAmt = parseFloat(month.UnitAmt || 0);
@@ -121,7 +117,7 @@ export default async function handler(req, res) {
   try {
     const [yeoksamData, gfcData] = await Promise.all([
       fetchStoreDataWithCookie("솔솥 역삼점", yeoksamCookie),
-      fetchStoreData("솔솥 GFC점", gfcCookie)
+      fetchStoreDataWithCookie("솔솥 GFC점", gfcCookie)
     ]);
 
     return res.status(200).json({
