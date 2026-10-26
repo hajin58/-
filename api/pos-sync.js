@@ -37,7 +37,6 @@ export default async function handler(req, res) {
           },
           body: `sch_date=${todayStr}`
         }),
-        // 💡 7일 전 조회 시 엔드포인트를 다르게 가져가거나 파라미터 확장
         fetch(`${PROXY_URL}/v2/onday`, {
           method: "POST",
           headers: {
@@ -72,25 +71,16 @@ export default async function handler(req, res) {
       }
       const avgPrice = totalCount > 0 ? Math.round(todaySales / totalCount) : 0;
 
-      // 2. 💡 7일 전 매출 파싱 (ONEDAY가 없으면 MONTH 안의 데이터나 다른 필드를 총동원해서 추출)
-      let prevWeekSales = 0;
+      // 2. 💡 7일 전 매출 파싱 (MONTH 객체의 UnitAmt와 SellCnt를 조합하여 계산)
       const prevOneday = prevData.ONEDAY || {};
       const prevMonth = prevData.MONTH || {};
-
-      const pTot = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || prevMonth.TotAmt || prevMonth.ReceiveAmt || 0, 10);
-      const pCnt = parseInt(prevOneday.SellCnt || prevMonth.SellCnt || 0, 10);
-      const pUnit = parseFloat(prevOneday.UnitAmt || prevMonth.UnitAmt || 0);
-
-      if (pTot > 0) {
-        prevWeekSales = pTot;
-      } else if (pUnit > 0 && pCnt > 0) {
-        prevWeekSales = Math.round(pUnit * pCnt);
-      }
-
-      // 만약 위에서도 안 잡히면, 유니온소프트 특성상 과거 날짜는 단건 조회 API가 막혀있을 수 있으므로 
-      // 임시로 오늘 매출과 연동되거나 0으로 떨어지지 않게 방어 코드 적용
-      if (prevWeekSales === 0) {
-        prevWeekSales = todaySales; // 비교군이 없을 때 0퍼센트로 무너지지 않도록 처리
+      
+      const prevCount = parseInt(prevOneday.SellCnt || prevMonth.SellCnt || 0, 10);
+      const prevUnitAmt = parseFloat(prevOneday.UnitAmt || prevMonth.UnitAmt || 0);
+      let prevWeekSales = parseInt(prevOneday.TotAmt || prevOneday.ReceiveAmt || prevMonth.TotAmt || prevMonth.ReceiveAmt || 0, 10);
+      
+      if (prevWeekSales === 0 && prevUnitAmt > 0 && prevCount > 0) {
+        prevWeekSales = Math.round(prevUnitAmt * prevCount);
       }
 
       // 3. 이번 달 누적 매출 파싱
